@@ -15,15 +15,18 @@ const PORT: number = parseInt(process.env.PORT || '3000', 10);
 // ---------------------------------------------------------------------------
 // CORS — permite el frontend en dev y en producción (Render Static Site)
 // ---------------------------------------------------------------------------
-const ALLOWED_ORIGINS = [
-  'http://localhost:5173',
-  process.env.FRONTEND_URL, // ej: https://servitex-frontend.onrender.com
-].filter(Boolean) as string[];
-
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir requests sin origin (Postman, curl, etc.) y orígenes en la lista
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+    // Permitir requests sin origin (Postman, curl, health checks)
+    if (!origin) return callback(null, true);
+
+    const allowed =
+      origin === 'http://localhost:5173' ||
+      origin === 'http://localhost:3000' ||
+      origin.endsWith('.onrender.com') ||           // cualquier subdominio de Render
+      origin === process.env.FRONTEND_URL;           // URL explícita por env var
+
+    if (allowed) {
       callback(null, true);
     } else {
       callback(new Error(`CORS: origen no permitido → ${origin}`));
