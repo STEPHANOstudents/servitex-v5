@@ -2,6 +2,7 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import ordenesRouter from './routes/ordenes.routes';
+import recetasRouter from './routes/recetas.routes';
 
 dotenv.config();
 
@@ -22,7 +23,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'OK',
     message: 'SERVITEX API funcionando correctamente',
-    version: '1.0.0',
+    version: '2.0.0',
     timestamp: new Date().toISOString(),
   });
 });
@@ -31,6 +32,11 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // Rutas de la API — Módulo 1: Órdenes de Compra
 // ---------------------------------------------------------------------------
 app.use('/api/ordenes', ordenesRouter);
+
+// ---------------------------------------------------------------------------
+// Rutas de la API — Módulo 2: Recetas Técnicas + Motor Químico
+// ---------------------------------------------------------------------------
+app.use('/api/recetas', recetasRouter);
 
 // ---------------------------------------------------------------------------
 // Manejador 404 — Ruta no encontrada
@@ -51,11 +57,16 @@ app.listen(PORT, () => {
   console.log(`📦 Entorno: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📋 Rutas activas:`);
   console.log(`   GET  http://localhost:${PORT}/api/health`);
-  console.log(`   POST http://localhost:${PORT}/api/ordenes`);
-  console.log(`   GET  http://localhost:${PORT}/api/ordenes`);
-  console.log(`   GET  http://localhost:${PORT}/api/ordenes/:id`);
-  console.log(`   GET  http://localhost:${PORT}/api/ordenes/numero/:numeroOC`);
+  console.log(`   --- Módulo 1: Órdenes de Compra ---`);
+  console.log(`   POST  http://localhost:${PORT}/api/ordenes`);
+  console.log(`   GET   http://localhost:${PORT}/api/ordenes`);
+  console.log(`   GET   http://localhost:${PORT}/api/ordenes/:id`);
+  console.log(`   GET   http://localhost:${PORT}/api/ordenes/numero/:numeroOC`);
   console.log(`   PATCH http://localhost:${PORT}/api/ordenes/:id/estado`);
+  console.log(`   --- Módulo 2: Recetas Técnicas + Motor Químico ---`);
+  console.log(`   POST  http://localhost:${PORT}/api/recetas`);
+  console.log(`   GET   http://localhost:${PORT}/api/recetas`);
+  console.log(`   GET   http://localhost:${PORT}/api/recetas/:id`);
 });
 
 export default app;
