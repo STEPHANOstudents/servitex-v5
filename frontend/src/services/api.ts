@@ -9,7 +9,9 @@ import type {
   OrdenesPaginadas,
 } from '../types/ordenes';
 
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
 
 // ---------------------------------------------------------------------------
 // Helper: lanzar error con mensaje del backend si existe

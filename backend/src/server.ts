@@ -12,7 +12,25 @@ const PORT: number = parseInt(process.env.PORT || '3000', 10);
 // ---------------------------------------------------------------------------
 // Middleware global
 // ---------------------------------------------------------------------------
-app.use(cors());
+// ---------------------------------------------------------------------------
+// CORS — permite el frontend en dev y en producción (Render Static Site)
+// ---------------------------------------------------------------------------
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  process.env.FRONTEND_URL, // ej: https://servitex-frontend.onrender.com
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (Postman, curl, etc.) y orígenes en la lista
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origen no permitido → ${origin}`));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
