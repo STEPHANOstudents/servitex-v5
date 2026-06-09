@@ -4,7 +4,7 @@
 //        Composición del artículo (fibra). Nada más.
 // =============================================================================
 import React, { useState } from 'react';
-import type { RecetaListItem, RecetaConMotor } from '../types/recetas';
+import type { RecetaListItem } from '../types/recetas';
 import { getFibraClase, getFibraLabel, getNivelClase } from '../types/recetas';
 
 const POR_PAGINA = 12;

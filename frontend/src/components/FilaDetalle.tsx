@@ -3,7 +3,7 @@
 // Una fila individual de la tabla dinámica de colores/lotes
 // =============================================================================
 import React from 'react';
-import type { FilaDetalle } from '../../types/ordenes';
+import type { FilaDetalle } from '../types/ordenes';
 
 interface FilaDetalleProps {
   fila: FilaDetalle;
