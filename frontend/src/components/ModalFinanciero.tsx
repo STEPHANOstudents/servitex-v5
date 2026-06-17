@@ -92,7 +92,7 @@ const ModalFinanciero: React.FC<ModalFinancieroProps> = ({
                     {detalle.colorSolicitado}
                   </div>
                   <div className="desglose-detalle">
-                    {detalle.descripcionArticulo} &nbsp;·&nbsp;
+                    {detalle.articulo.nombre} &nbsp;·&nbsp;
                     {detalle.cantidad.toFixed(2)} m × S/ {detalle.precioPorMetro.toFixed(2)}
                   </div>
                 </div>

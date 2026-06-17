@@ -23,6 +23,7 @@ export interface ComposicionFibra {
   codigo: string;
   etiqueta: string;
   totalBanos: number;
+  descripcionRuta?: string;
 }
 
 export interface ArticuloTextil {
