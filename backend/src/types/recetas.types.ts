@@ -66,6 +66,7 @@ export interface RecetaResponse {
     id:                    number;
     detalleOrdenId:        number;
     pesoRealKg:            number;
+    articuloId:            number;   // ID del catálogo articulos_textiles
     articulo:              string;   // nombre del artículo (del catálogo)
     composicionFibra:      string;   // código de la fibra
     composicionFibraLabel: string;   // etiqueta legible
@@ -76,9 +77,40 @@ export interface RecetaResponse {
     observacionesTecnicas: string | null;
     createdAt:             string;
     colorantes: Array<{
-      nombreColorante: string;  // nombre del catálogo
+      coloranteId:     number;   // ID del catálogo colorantes_catalogo
+      nombreColorante: string;   // nombre del catálogo
       porcentaje:      number;
     }>;
   };
   motorQuimico: ResultadoMotorQuimico;
 }
+
+/** DTO para listar recetas (sin el motor, con datos de contexto del lote). */
+export interface RecetaListDTO {
+  id:                    number;
+  detalleOrdenId:        number;
+  pesoRealKg:            number;
+  articuloId:            number;
+  articulo:              string;
+  composicionFibra:      string;
+  composicionFibraLabel: string;
+  relacionBano:          number;
+  litrosAgua:            number;
+  descripcionColor:      string;
+  nivelIntensidad:       number;
+  observacionesTecnicas: string | null;
+  createdAt:             string;
+  colorantes: Array<{
+    coloranteId:     number;
+    nombreColorante: string;
+    porcentaje:      number;
+  }>;
+  lote?: {
+    colorSolicitado:    string;
+    descripcionArticulo: string;
+    cantidad:           number;
+    numeroOC:           string;
+    cliente:            string;
+  };
+}
+
