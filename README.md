@@ -2,8 +2,9 @@
 
 > Sistema web fullstack para la gestión de Órdenes de Compra y Recetas Técnicas de teñido textil. Desarrollado con React + Node.js y desplegado en producción sobre [Render](https://render.com).
 
-🌐 **Producción:** https://servitex.onrender.com  
-🔗 **API Backend:** https://servitex-backend.onrender.com
+🌐 **Producción Frontend:** https://servitex.onrender.com  
+🔗 **API Backend:** https://servitex-backend.onrender.com  
+📦 **Repositorio:** https://github.com/STEPHANOstudents/servitex-v5
 
 ---
 
@@ -11,55 +12,66 @@
 
 ```
 Servitex/
-├── backend/                        # API REST (Node.js + Express + TypeScript + Prisma)
+├── backend/                            # API REST (Node.js + Express + TypeScript + Prisma)
 │   ├── prisma/
-│   │   ├── schema.prisma           # Modelos de base de datos (PostgreSQL)
-│   │   └── migrations/             # Historial de migraciones (autogenerado)
+│   │   ├── schema.prisma               # 20 modelos de BD — esquema normalizado 3FN
+│   │   └── seed.ts                     # Poblar catálogos iniciales (9 tablas)
 │   ├── src/
-│   │   ├── server.ts               # Punto de entrada — Express + CORS + rutas
+│   │   ├── server.ts                   # Express + CORS + rutas registradas
 │   │   ├── controllers/
-│   │   │   ├── ordenes.controller.ts   # Lógica HTTP de Órdenes de Compra
-│   │   │   └── recetas.controller.ts   # Lógica HTTP de Recetas Técnicas
+│   │   │   ├── catalogos.controller.ts # GET /api/catalogos — datos de referencia
+│   │   │   ├── ordenes.controller.ts   # CRUD de Órdenes de Compra
+│   │   │   └── recetas.controller.ts   # CRUD de Recetas Técnicas
 │   │   ├── services/
-│   │   │   ├── ordenes.service.ts      # Transacciones Prisma de OC
-│   │   │   └── recetas.service.ts      # Motor Químico + transacciones Prisma
+│   │   │   ├── catalogos.service.ts    # Leer los 9 catálogos en una sola consulta
+│   │   │   ├── ordenes.service.ts      # Transacciones Prisma de OC (con FK)
+│   │   │   └── recetas.service.ts      # Motor Químico + transacciones Prisma (con FK)
 │   │   ├── routes/
-│   │   │   ├── ordenes.routes.ts       # Endpoints /api/ordenes
-│   │   │   └── recetas.routes.ts       # Endpoints /api/recetas
+│   │   │   ├── catalogos.routes.ts     # GET /api/catalogos
+│   │   │   ├── ordenes.routes.ts       # /api/ordenes
+│   │   │   └── recetas.routes.ts       # /api/recetas
 │   │   ├── validators/
-│   │   │   └── ordenes.validator.ts    # Validación de datos de entrada
-│   │   ├── engines/                    # Motor Químico (cálculo de baños)
-│   │   ├── types/                      # Tipos TypeScript del backend
-│   │   └── lib/                        # Instancia compartida de Prisma Client
-│   ├── .env                        # Variables de entorno locales (NO subir a Git)
-│   ├── .env.example                # Plantilla de variables de entorno
-│   ├── prisma.config.ts            # Config Prisma v7 (adapter pg + dotenv)
+│   │   │   ├── ordenes.validator.ts    # Validación de entrada para OC
+│   │   │   └── recetas.validator.ts    # Validación de entrada para Recetas
+│   │   ├── engines/
+│   │   │   └── quimico.engine.ts       # Motor Químico (cálculo de baños y gramos)
+│   │   ├── types/
+│   │   │   ├── ordenes.types.ts        # Interfaces TypeScript del módulo OC
+│   │   │   └── recetas.types.ts        # Interfaces TypeScript del módulo Lab
+│   │   └── lib/
+│   │       ├── prisma.ts               # Instancia compartida de Prisma Client
+│   │       └── catalogos.cache.ts      # Caché en memoria de IDs de catálogo
+│   ├── .env                            # Variables de entorno locales (NO subir a Git)
+│   ├── .env.example                    # Plantilla de variables de entorno
+│   ├── prisma.config.ts                # Config Prisma v7 (adapter pg + dotenv)
 │   ├── package.json
 │   └── tsconfig.json
 │
-└── frontend/                       # UI (React 19 + Vite + TypeScript)
+└── frontend/                           # UI (React 19 + Vite + TypeScript)
     ├── public/
-    │   └── _redirects              # Regla SPA para Render Static Site
+    │   └── _redirects                  # Regla SPA para Render Static Site
     ├── src/
-    │   ├── App.tsx                 # Componente raíz + navegación por tabs
-    │   ├── main.tsx                # Punto de entrada React
-    │   ├── index.css               # Estilos globales (dark mode, design system)
+    │   ├── App.tsx                     # Componente raíz + navegación por tabs
+    │   ├── main.tsx                    # Punto de entrada React
+    │   ├── index.css                   # Estilos globales — Tema claro profesional (Inter)
+    │   ├── lab.css                     # Estilos adicionales del módulo Lab/Recetas
     │   ├── components/
-    │   │   ├── FilaDetalle.tsx         # Fila dinámica de la tabla de colores/lotes
-    │   │   ├── FormularioOrden.tsx     # Formulario completo de Orden de Compra
-    │   │   ├── FormularioReceta.tsx    # Formulario Técnico de Receta de Teñido
-    │   │   ├── TableroControl.tsx      # Tablero de Órdenes de Compra (Kanban)
-    │   │   ├── TableroRecetas.tsx      # Historial de Recetas (grid de tarjetas)
-    │   │   ├── ModalDetalleReceta.tsx  # Modal con desglose químico completo
-    │   │   └── ModalFinanciero.tsx     # Modal con liquidación financiera de OC
+    │   │   ├── FilaDetalle.tsx          # Fila dinámica de lotes (artículo desde catálogo)
+    │   │   ├── FormularioOrden.tsx      # Formulario de Orden de Compra
+    │   │   ├── FormularioReceta.tsx     # Formulario Técnico — carga catálogos de API
+    │   │   ├── TableroControl.tsx       # Tablero de Órdenes de Compra
+    │   │   ├── TableroRecetas.tsx       # Historial de Recetas (grid de tarjetas)
+    │   │   ├── ModalDetalleReceta.tsx   # Modal con desglose químico completo
+    │   │   └── ModalFinanciero.tsx      # Modal con liquidación financiera de OC
     │   ├── services/
-    │   │   ├── api.ts              # Llamadas HTTP al backend (Órdenes)
-    │   │   └── recetasApi.ts       # Llamadas HTTP al backend (Recetas)
+    │   │   ├── api.ts                  # HTTP client — módulo Órdenes
+    │   │   ├── recetasApi.ts           # HTTP client — módulo Recetas
+    │   │   └── catalogosApi.ts         # HTTP client — GET /api/catalogos
     │   └── types/
-    │       ├── ordenes.ts          # Tipos TypeScript: OC, Detalles, Respuestas
-    │       └── recetas.ts          # Tipos TypeScript: Recetas, Motor Químico
+    │       ├── ordenes.ts              # Tipos: OC, Detalles, objetos FK anidados
+    │       └── recetas.ts              # Tipos: Recetas, Motor Químico, Preload
     ├── index.html
-    ├── vite.config.ts              # Config Vite: puerto 5173, proxy /api → :3000
+    ├── vite.config.ts
     ├── package.json
     └── tsconfig.json
 ```
@@ -71,61 +83,146 @@ Servitex/
 | Capa | Tecnología |
 |---|---|
 | **Frontend** | React 19, TypeScript, Vite 8 |
-| **Backend** | Node.js, Express 5, TypeScript, ts-node |
-| **ORM** | Prisma 7 (con adapter `@prisma/adapter-pg`) |
-| **Base de Datos** | PostgreSQL (Render managed DB) |
+| **Estilos** | CSS puro — Tema claro profesional, Google Fonts Inter |
+| **Backend** | Node.js, Express 5, TypeScript |
+| **ORM** | Prisma 7 con `@prisma/adapter-pg` |
+| **Base de Datos** | PostgreSQL 16 (Render managed DB) |
 | **Deploy Frontend** | Render Static Site |
 | **Deploy Backend** | Render Web Service |
-| **Control de Versiones** | Git + GitHub (`STEPHANOstudents/servitex-v5`) |
+| **Control de versiones** | Git + GitHub (`STEPHANOstudents/servitex-v5`) |
 
 ---
 
-## 🗄️ Modelo de Base de Datos
+## 🗄️ Modelo de Base de Datos — 20 Tablas Normalizadas (3FN)
 
-La base de datos tiene **4 tablas** (modelos Prisma) en PostgreSQL:
+El esquema fue normalizado a **Tercera Forma Normal (3FN)**. Se eliminaron todos los `enum` de Prisma y se reemplazaron por **tablas de catálogo** con relaciones FK.
 
+### Tablas de Catálogo (9 tablas de referencia)
+
+| Tabla | Descripción |
+|---|---|
+| `tipos_cliente` | EMPRESA, PERSONA_NATURAL, TALLER_EXTERNO, DISTRIBUIDOR |
+| `estados_orden` | PENDIENTE, EN_PROCESO, COMPLETADA, ANULADA |
+| `composiciones_fibra` | ALGODON, NYLON, POLIESTER, MULTIFIBRA_* (6 variantes) |
+| `articulos_textiles` | Avío, Prenda, Hilo, Tela cruda, Cierre, etc. |
+| `unidades_medida` | METROS, KILOS, PIEZAS |
+| `colorantes_catalogo` | 27 colorantes reactivos, ácidos y dispersos |
+| `tipos_incidencia` | COLOR_FUERA_RANGO, REPROCESO, DAÑO_ARTICULO |
+| `fases_proceso` | PREBLANQUEO, TENIDO, TENIDO_ALGODON, ACABADO, etc. |
+| `tipos_reporte` | ORDENES_POR_PERIODO, INGRESOS_POR_CLIENTE, etc. |
+
+### Tablas Operativas (11 tablas de negocio)
+
+| Tabla | Descripción |
+|---|---|
+| `clientes` | Maestro de clientes (FK → tipos_cliente) |
+| `ordenes_compra` | Cabecera de OC (FK → clientes, estados_orden) |
+| `detalles_orden` | Lotes a teñir (FK → ordenes_compra, articulos_textiles, unidades_medida) |
+| `recetas_tecnicas` | Formulario técnico (FK → detalles_orden, articulos_textiles, composiciones_fibra) |
+| `colorantes_formula` | Colorantes de una receta (FK → recetas_tecnicas, colorantes_catalogo) |
+| `bitacora_estados` | Historial de cambios de estado de OC |
+| `lotes_produccion` | Control de producción por lote |
+| `incidencias_calidad` | Registro de problemas en el proceso |
+| `entregas` | Registro de entregas al cliente |
+| `reportes` | Reportes generados del sistema |
+| `detalle_reporte` | Filas de un reporte |
+
+### Jerarquía principal:
 ```
-clientes
-  └── ordenes_compra (FK: clienteId)
-        └── detalles_orden (FK: ordenCompraId, CASCADE DELETE)
-              └── recetas_tecnicas (FK: detalleOrdenId 1-1, CASCADE DELETE)
-                    └── colorantes_formula (FK: recetaTecnicaId, CASCADE DELETE)
+tipos_cliente ──────┐
+                    ▼
+                 clientes ─────────── estados_orden
+                    │                      │
+                    ▼                      │
+              ordenes_compra ◄─────────────┘
+                    │
+                    ▼
+              detalles_orden ── articulos_textiles ── unidades_medida
+                    │
+                    ▼
+            recetas_tecnicas ── composiciones_fibra
+                    │
+                    ▼
+          colorantes_formula ── colorantes_catalogo
 ```
-
-### Tablas:
-- **`clientes`** — Catálogo maestro de clientes (nombre, tipo, RUC, etc.)
-- **`ordenes_compra`** — Cabecera de la OC (número, estado, observaciones)
-- **`detalles_orden`** — Filas dinámicas de lotes a teñir (cantidad, color, precio)
-- **`recetas_tecnicas`** — Formulario técnico del laboratorio (peso, fibra, relación baño)
-- **`colorantes_formula`** — Colorantes individuales de una receta con su porcentaje
-
-### Enums:
-- `TipoCliente`: `EMPRESA | PERSONA_NATURAL | TALLER_EXTERNO | DISTRIBUIDOR`
-- `EstadoOrden`: `PENDIENTE | EN_PROCESO | COMPLETADA | ANULADA`
-- `ComposicionFibra`: `ALGODON | NYLON | POLIESTER | MULTIFIBRA_*` (6 variantes)
 
 ---
 
 ## 🔌 API REST — Endpoints
 
+### Módulo 0: Catálogos (`/api/catalogos`)
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `GET` | `/api/catalogos` | Devuelve los 9 catálogos en una sola consulta (para llenar los `<select>` del frontend) |
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "data": {
+    "tiposCliente":       [{ "id": 1, "codigo": "EMPRESA", "etiqueta": "Empresa" }],
+    "estadosOrden":       [{ "id": 1, "codigo": "PENDIENTE", "etiqueta": "Pendiente", "esEstadoFinal": false }],
+    "composicionesFibra": [{ "id": 1, "codigo": "ALGODON", "etiqueta": "Algodón", "totalBanos": 9 }],
+    "articulosTextiles":  [{ "id": 1, "nombre": "Avío" }],
+    "unidadesMedida":     [{ "id": 1, "codigo": "METROS", "simbolo": "m", "etiqueta": "Metros" }],
+    "colorantesCatalogo": [{ "id": 1, "nombre": "Ramazol Yellow" }],
+    "tiposIncidencia":    [...],
+    "fasesProceso":       [...],
+    "tiposReporte":       [...]
+  }
+}
+```
+
 ### Módulo 1: Órdenes de Compra (`/api/ordenes`)
 
 | Método | Endpoint | Descripción |
 |---|---|---|
-| `POST` | `/api/ordenes` | Crear OC completa (cabecera + detalles en una transacción) |
-| `GET` | `/api/ordenes` | Listar todas las OCs con detalles (paginado, filtros por estado/cliente) |
-| `GET` | `/api/ordenes/:id` | Obtener OC por ID con liquidación financiera |
-| `GET` | `/api/ordenes/numero/:numeroOC` | Buscar OC por código de documento |
-| `PATCH` | `/api/ordenes/:id/estado` | Actualizar solo el estado operativo |
-| `GET` | `/api/health` | Health check del servidor |
+| `POST` | `/api/ordenes` | Crear OC completa (cabecera + detalles en transacción atómica) |
+| `GET` | `/api/ordenes` | Listar OCs con paginación |
+| `GET` | `/api/ordenes/:id` | OC por ID con liquidación financiera calculada |
+| `PATCH` | `/api/ordenes/:id/estado` | Cambiar estado operativo |
+| `GET` | `/api/health` | Health check |
+
+**Body POST:**
+```json
+{
+  "numeroOC": "OC-001",
+  "clienteNombre": "Empresa XYZ",
+  "tipoClienteCodigo": "EMPRESA",
+  "detalles": [
+    { "cantidad": 100, "articuloId": 1, "colorSolicitado": "Navy Blue", "precioPorMetro": 5.0 }
+  ]
+}
+```
+
+**Body PATCH estado:**
+```json
+{ "estadoCodigo": "EN_PROCESO" }
+```
 
 ### Módulo 2: Recetas Técnicas (`/api/recetas`)
 
 | Método | Endpoint | Descripción |
 |---|---|---|
-| `POST` | `/api/recetas` | Crear receta técnica (el backend calcula litros, nivel de intensidad y ejecuta el Motor Químico) |
-| `GET` | `/api/recetas` | Listar todas las recetas (más reciente primero) |
-| `GET` | `/api/recetas/:id` | Obtener receta con desglose completo del Motor Químico (baños, litros y gramos) |
+| `POST` | `/api/recetas` | Crear receta (backend calcula litros, intensidad y ejecuta el Motor Químico) |
+| `GET` | `/api/recetas` | Listar recetas (más reciente primero) |
+| `GET` | `/api/recetas/:id` | Receta con desglose completo del Motor Químico |
+
+**Body POST:**
+```json
+{
+  "detalleOrdenId": 1,
+  "pesoRealKg": 2.5,
+  "articuloId": 1,
+  "composicionFibraCodigo": "ALGODON",
+  "relacionBano": 40,
+  "descripcionColor": "Navy Blue",
+  "colorantes": [
+    { "coloranteId": 1, "porcentaje": 0.5 }
+  ]
+}
+```
 
 ### Formato de Respuesta Estándar
 ```json
@@ -133,7 +230,7 @@ clientes
   "success": true,
   "message": "Descripción del resultado",
   "data": { ... },
-  "timestamp": "2026-06-09T06:00:00.000Z"
+  "timestamp": "2026-06-17T14:00:00.000Z"
 }
 ```
 
@@ -145,15 +242,15 @@ clientes
 [Usuario]
     │
     ▼
-[Render Static Site]                         [Render Web Service]
-https://servitex.onrender.com  ───fetch──►  https://servitex-backend.onrender.com
-   React SPA (dist/)                            Express API (Node.js)
-   VITE_API_URL → backend URL                       │
-                                                     ▼
-                                         [Render PostgreSQL]
-                                         dpg-d8jnvhs2m8qs739aqdfg-a
-                                         .oregon-postgres.render.com
-                                         Base de datos: servitex_db
+[Render Static Site]                          [Render Web Service]
+https://servitex.onrender.com  ──fetch──►  https://servitex-backend.onrender.com
+   React SPA (dist/)                             Express API (Node.js)
+   VITE_API_URL → backend URL                         │
+                                                       ▼
+                                           [Render PostgreSQL 16]
+                                           dpg-d8jnvhs2m8qs739aqdfg-a
+                                           .oregon-postgres.render.com
+                                           Base de datos: servitex_db
 ```
 
 **En desarrollo local:**
@@ -167,7 +264,7 @@ http://localhost:5173  ──proxy /api──►  http://localhost:3000
                                     (misma BD de producción vía SSL)
 ```
 
-> El proxy de Vite (`vite.config.ts`) redirige automáticamente todas las peticiones `/api/*` al backend en localhost:3000. En producción esto no aplica — el frontend usa directamente la URL del backend via `VITE_API_URL`.
+> El proxy de Vite (`vite.config.ts`) redirige `/api/*` al backend en `localhost:3000`. En producción el frontend usa `VITE_API_URL`.
 
 ---
 
@@ -182,15 +279,13 @@ NODE_ENV=development
 FRONTEND_URL=https://servitex.onrender.com
 ```
 
-> Para desarrollo local puedes apuntar a la misma BD de Render o a un PostgreSQL local.
-
-### Frontend (`frontend/.env` — solo para producción local)
+### Frontend (`frontend/.env` — solo producción local)
 
 ```env
 VITE_API_URL=https://servitex-backend.onrender.com
 ```
 
-> En desarrollo local esta variable no es necesaria: Vite redirige `/api` al backend local mediante el proxy.
+> En desarrollo local no es necesaria: Vite proxy redirige `/api` al backend local.
 
 ---
 
@@ -199,7 +294,7 @@ VITE_API_URL=https://servitex-backend.onrender.com
 ### Requisitos previos
 - Node.js ≥ 18
 - npm ≥ 9
-- Acceso a la base de datos PostgreSQL (Render o local)
+- Acceso a PostgreSQL (Render o local)
 
 ### 1. Clonar el repositorio
 
@@ -208,25 +303,29 @@ git clone https://github.com/STEPHANOstudents/servitex-v5.git
 cd servitex-v5
 ```
 
-### 2. Configurar el Backend
+### 2. Configurar y arrancar el Backend
 
 ```bash
 cd backend
 npm install
 ```
 
-Crea el archivo `backend/.env` basándote en `.env.example`:
+Crea `backend/.env` basándote en `.env.example`:
 
 ```env
 PORT=3000
-DATABASE_URL="postgresql://servitex_db_user:PASSWORD@HOST.render.com/servitex_db?sslmode=require"
+DATABASE_URL="postgresql://..."
 NODE_ENV=development
 ```
 
-Sincronizar el schema con la base de datos:
+Sincronizar el schema con la base de datos (primera vez o tras cambios):
 
 ```bash
-npx prisma db push
+# Aplicar las 20 tablas a la BD (RESETEA LOS DATOS)
+npx prisma db push --force-reset --config prisma.config.ts
+
+# Poblar los 9 catálogos de referencia
+npx ts-node prisma/seed.ts
 ```
 
 Iniciar el servidor de desarrollo:
@@ -236,7 +335,7 @@ npm run dev
 # ✅ Servidor corriendo en http://localhost:3000
 ```
 
-### 3. Configurar el Frontend
+### 3. Configurar y arrancar el Frontend
 
 ```bash
 cd frontend
@@ -245,7 +344,7 @@ npm run dev
 # ✅ App disponible en http://localhost:5173
 ```
 
-> Debes tener el backend corriendo al mismo tiempo para que el proxy funcione.
+> El backend debe estar corriendo para que el proxy funcione.
 
 ---
 
@@ -254,22 +353,21 @@ npm run dev
 ### Backend
 
 ```bash
-npm run dev              # Servidor en modo desarrollo (ts-node, hot-reload)
-npm run build            # Compilar TypeScript → dist/
+npm run dev              # Servidor desarrollo (ts-node)
+npm run build            # prisma generate + tsc → dist/
 npm start                # Ejecutar el build compilado (producción)
-npm run prisma:generate  # Regenerar Prisma Client después de cambios en schema
-npm run prisma:migrate   # Crear y aplicar una nueva migración
-npm run prisma:studio    # Abrir Prisma Studio (UI visual de la base de datos)
-npm run prisma:reset     # Resetear la base de datos (cuidado en producción)
+npm run seed             # Poblar catálogos iniciales
+npm run prisma:generate  # Regenerar Prisma Client
+npm run prisma:studio    # Abrir Prisma Studio (UI visual de la BD)
 ```
 
 ### Frontend
 
 ```bash
-npm run dev      # Servidor de desarrollo Vite (http://localhost:5173)
+npm run dev      # Servidor Vite (http://localhost:5173)
 npm run build    # Build de producción → dist/
-npm run preview  # Vista previa del build de producción
-npm run lint     # Linter ESLint
+npm run preview  # Vista previa del build
+npm run lint     # ESLint
 ```
 
 ---
@@ -280,15 +378,15 @@ El proyecto tiene **3 servicios en Render**:
 
 ### 1. PostgreSQL Database
 - **Nombre:** `servitex_db`
-- **Plan:** Free
+- **Plan:** Free — PostgreSQL 16
 - **Región:** Oregon (US West)
 - La URL de conexión externa se obtiene en: *Dashboard → servitex_db → Connections → External Database URL*
 
 ### 2. Web Service (Backend)
 - **Nombre:** `servitex-backend`
-- **Repositorio:** `STEPHANOstudents/servitex-v5`
 - **Root Directory:** `backend`
-- **Build Command:** `npm install && npx prisma generate && npm run build`
+- **Build Command:** `npm install && npm run build`
+  > El script `build` en `package.json` ejecuta `prisma generate --config prisma.config.ts && tsc`
 - **Start Command:** `npm start`
 - **Variables de entorno en Render:**
   ```
@@ -299,7 +397,6 @@ El proyecto tiene **3 servicios en Render**:
 
 ### 3. Static Site (Frontend)
 - **Nombre:** `servitex`
-- **Repositorio:** `STEPHANOstudents/servitex-v5`
 - **Root Directory:** `frontend`
 - **Build Command:** `npm install && npm run build`
 - **Publish Directory:** `dist`
@@ -308,55 +405,87 @@ El proyecto tiene **3 servicios en Render**:
   VITE_API_URL = https://servitex-backend.onrender.com
   ```
 
-### Sincronizar la base de datos (primera vez o tras cambios de schema)
+### Actualizar el schema en producción (tras cambios en `schema.prisma`)
 
 ```bash
+# Desde tu máquina local, apuntando a la BD de Render:
 cd backend
-npx prisma db push
-# ✅ Your database is now in sync with your Prisma schema.
+npx prisma db push --force-reset --config prisma.config.ts
+npx ts-node prisma/seed.ts
+git push origin main   # Render redespliega automáticamente
 ```
 
-> Render redespliega automáticamente cada vez que se hace `git push` a la rama `main`.
+> ⚠️ `--force-reset` elimina todos los datos. Úsalo solo en etapa de desarrollo. En producción real usa migraciones (`prisma migrate deploy`).
 
 ---
 
 ## 🔒 CORS
 
-El backend permite peticiones únicamente desde:
-- `http://localhost:5173` (desarrollo local)
-- `http://localhost:3000` (desarrollo local)
-- Cualquier subdominio `*.onrender.com` (todos los servicios de Render)
-- La URL definida en `FRONTEND_URL` (env var explícita)
+El backend permite peticiones desde:
+- `http://localhost:5173` (Vite dev)
+- `http://localhost:3000` (backend local)
+- Cualquier subdominio `*.onrender.com`
+- La URL definida en `FRONTEND_URL`
 
 ---
 
 ## 📋 Funcionalidades del Sistema
 
 ### Módulo 1: Órdenes de Compra
-- ✅ Registro de OC con cabecera (número, cliente, tipo, observaciones)
-- ✅ Tabla dinámica de lotes/colores (añadir/eliminar filas)
+- ✅ Registro de OC: número, cliente, tipo de cliente (desde catálogo), observaciones
+- ✅ Tabla dinámica de lotes: artículo (SELECT catálogo), color, cantidad, precio
 - ✅ Cálculo en tiempo real: subtotal por fila, IGV 18%, total general
-- ✅ Validación completa en frontend y backend
-- ✅ Tablero Kanban con filtros por estado
+- ✅ Validación en frontend y backend
+- ✅ Tablero de cartillas con estado visible
 - ✅ Modal de liquidación financiera detallada
+- ✅ Bitácora automática de cambios de estado
 
 ### Módulo 2: Recetas Técnicas (Laboratorio)
-- ✅ Formulario técnico: peso, artículo, composición de fibra, relación de baño
-- ✅ Fórmula del color: colorantes con porcentajes individuales
-- ✅ **Motor Químico automático:** calcula los baños de teñido según la fibra:
-  - Algodón: 9 baños (5 teñido + 4 preblanqueo)
+- ✅ Formulario técnico con catálogos cargados desde la API:
+  - Artículo textil (SELECT)
+  - Composición de fibra (botones con total de baños)
+  - Colorantes con buscador y porcentajes individuales (SELECT + checkbox)
+- ✅ **Motor Químico automático:** calcula baños según la fibra:
+  - Algodón: 9 baños (4 Preblanqueo + 5 Teñido)
   - Nylon / Poliéster: 4 baños
   - Multifibra: 7 baños
-- ✅ Cálculo automático de litros por baño y gramos de cada producto
+- ✅ Cálculo automático de litros y gramos de cada producto químico
 - ✅ Nivel de intensidad automático (Pastel / Claro / Intermedio / Intenso)
 - ✅ Historial de recetas en grid de tarjetas con paginación
-- ✅ Modal de desglose químico completo
+- ✅ Modal de desglose químico con resumen consolidado
+- ✅ Función "Copiar como base" para reutilizar fórmulas
+
+### Diseño
+- ✅ Tema claro profesional (blanco, grises suaves, acento teal)
+- ✅ Tipografía Inter (Google Fonts)
+- ✅ Responsivo (móvil, tablet, escritorio)
+- ✅ Animaciones y micro-interacciones
+
+---
+
+## 🗂️ Normalización de la Base de Datos
+
+El esquema fue refactorizado de **5 tablas con enums** a **20 tablas normalizadas**:
+
+| Antes (v1) | Después (v3) |
+|---|---|
+| `enum TipoCliente` en Prisma | Tabla `tipos_cliente` con FK |
+| `enum EstadoOrden` en Prisma | Tabla `estados_orden` con FK |
+| `enum ComposicionFibra` en Prisma | Tabla `composiciones_fibra` con FK |
+| `descripcionArticulo: String` (texto libre) | Tabla `articulos_textiles` con FK |
+| `nombreColorante: String` (texto libre) | Tabla `colorantes_catalogo` con FK |
+
+**Formas Normales aplicadas:**
+- **1FN:** Todos los campos son atómicos. Sin grupos repetidos.
+- **2FN:** Cada atributo depende de toda la clave primaria (no hay dependencias parciales).
+- **3FN:** Los atributos solo dependen de la clave primaria (sin dependencias transitivas). Los enums y textos libres se pasaron a tablas independientes.
 
 ---
 
 ## 👨‍💻 Notas de Desarrollo
 
-- El proyecto usa **Prisma v7** con `prisma.config.ts` (nueva config declarativa). La URL de conexión se configura en `prisma.config.ts` mediante el adaptador `@prisma/adapter-pg`, no en el `schema.prisma`.
-- El frontend usa **rutas relativas** (`/api/...`) en desarrollo (el proxy de Vite las redirige al backend) y la **URL absoluta** del backend (`VITE_API_URL`) en producción.
-- El archivo `frontend/public/_redirects` es necesario para que Render sirva correctamente una SPA: redirige todas las rutas a `index.html` con código 200.
-- El backend compila TypeScript a `dist/` para producción (`npm run build` → `npm start`), pero en desarrollo usa `ts-node` directamente.
+- **Prisma v7** usa `prisma.config.ts` (API declarativa). La URL de conexión se configura en el adaptador `@prisma/adapter-pg`, no en el `schema.prisma`.
+- **El build del backend** (`npm run build`) ejecuta `prisma generate --config prisma.config.ts && tsc`. Esto regenera el cliente Prisma en cada deploy de Render.
+- **Catálogos en memoria:** `catalogos.cache.ts` carga los IDs de catálogo al arrancar el servidor para evitar consultas repetitivas en cada request.
+- **Motor Químico:** `quimico.engine.ts` usa el código de fibra como string (e.g. `'ALGODON'`) — ya no depende de enums de Prisma.
+- El archivo `frontend/public/_redirects` es necesario para que Render sirva la SPA correctamente.
