@@ -1,80 +1,60 @@
 // =============================================================================
 // SERVITEX — Tipos Compartidos para el Módulo de Órdenes de Compra
-// Contrato de datos estrictamente tipado entre el cliente y el servidor.
+// Versión 3.0 — Adaptado al esquema normalizado de 20 tablas.
 // =============================================================================
-import { TipoCliente, EstadoOrden } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
 // REQUEST BODIES (lo que llega al servidor)
 // ---------------------------------------------------------------------------
 
-/**
- * Datos de una fila individual del pedido (un lote/color).
- * Regla: El backend ignora el campo "total" del cliente y lo recalcula.
- */
+/** Datos de una fila individual del pedido (un lote/color). */
 export interface DetalleOrdenInput {
-  cantidad: number;           // Float: metros del lote (ej. 150.5)
-  descripcionArticulo: string; // Ej. "Avío", "Prenda", "Tela cruda"
-  colorSolicitado: string;    // Ej. "Keeneland Khaki"
-  precioPorMetro: number;     // Float: precio en S/. por metro
-  // "unidadMedida" no se acepta del cliente — es siempre "Metros" (constante de negocio)
-  // "total" no se acepta del cliente — se calcula en el servidor (seguridad matemática)
+  cantidad:       number;  // metros del lote
+  articuloId:     number;  // ID del catálogo articulos_textiles
+  colorSolicitado: string; // color pedido por el cliente (texto libre)
+  precioPorMetro: number;  // precio en S/. por metro
+  unidadMedidaId?: number; // ID del catálogo unidades_medida (default: Metros)
 }
 
-/**
- * Payload completo para crear una Orden de Compra.
- * Contiene la cabecera + todas las filas de colores en un solo request.
- */
+/** Payload completo para crear una Orden de Compra. */
 export interface CrearOrdenInput {
-  // --- CABECERA (datos fijos) ---
-  numeroOC: string;           // Código único del documento físico del cliente
-  clienteNombre: string;      // Nombre del cliente (se crea/busca en el catálogo)
-  tipoCliente: TipoCliente;   // Enum: EMPRESA | PERSONA_NATURAL | TALLER_EXTERNO | DISTRIBUIDOR
-  observaciones?: string;     // Observaciones generales de la OC (opcional)
-
-  // --- FILAS DINÁMICAS (mínimo 1 requerida) ---
-  detalles: DetalleOrdenInput[];
+  numeroOC:          string;
+  clienteNombre:     string;
+  tipoClienteCodigo: string; // 'EMPRESA' | 'PERSONA_NATURAL' | 'TALLER_EXTERNO' | 'DISTRIBUIDOR'
+  observaciones?:    string;
+  detalles:          DetalleOrdenInput[];
 }
 
-/**
- * Payload para actualizar el estado de una Orden de Compra.
- */
+/** Payload para actualizar el estado de una OC. */
 export interface ActualizarEstadoInput {
-  estado: EstadoOrden;
+  estadoCodigo: string; // 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADA' | 'ANULADA'
 }
 
 // ---------------------------------------------------------------------------
-// RESPONSE SHAPES (lo que devuelve el servidor)
+// RESPONSE SHAPES
 // ---------------------------------------------------------------------------
 
-/**
- * Resumen de liquidación financiera de una OC.
- * Se calcula al vuelo — nunca se persiste en la BD.
- */
+/** Resumen de liquidación financiera de una OC. Calculado al vuelo, nunca persistido. */
 export interface LiquidacionOC {
-  subtotalVenta: number;   // Suma de todos los totales de fila
-  igv: number;             // 18% del subtotalVenta
-  totalReal: number;       // subtotalVenta + igv (Monto Facturado)
-  cantidadLotes: number;   // Número de filas/teñidos individuales
-  metrosTotales: number;   // Suma de todos los metros
+  subtotalVenta: number;
+  igv:           number;
+  totalReal:     number;
+  cantidadLotes: number;
+  metrosTotales: number;
 }
 
-/**
- * Respuesta estándar de la API para operaciones exitosas.
- */
+/** Respuesta estándar de la API para operaciones exitosas. */
 export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data: T;
+  success:   boolean;
+  message:   string;
+  data:      T;
   timestamp: string;
 }
 
-/**
- * Respuesta estándar de la API para errores.
- */
+/** Respuesta estándar de la API para errores. */
 export interface ApiError {
-  success: false;
-  message: string;
-  errors?: Record<string, string>;
-  timestamp: string;
+  success:    false;
+  message:    string;
+  errors?:    Record<string, string>;
+  timestamp:  string;
 }

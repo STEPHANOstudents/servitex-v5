@@ -12,7 +12,7 @@
 //      - Multifibra Algodón+Sint.: 7 baños (neutralizado intermedio eliminado)
 //      - Multifibra Nylon+Poliéster: 7 baños (Poliéster primero)
 // =============================================================================
-import { ComposicionFibra } from '@prisma/client';
+// ComposicionFibra ahora es string (codigo del catálogo): 'ALGODON', 'NYLON', etc.
 import type {
   BanoQuimico,
   ColoranteInput,
@@ -379,7 +379,7 @@ function generarRutaNylonPoliester(litros: number): BanoQuimico[] {
 // Entrada: parámetros físicos + colorantes → Salida: secuencia completa
 // =============================================================================
 export function ejecutarMotorQuimico(params: {
-  composicion: ComposicionFibra;
+  composicion: string;  // codigo: 'ALGODON' | 'NYLON' | 'POLIESTER' | ...
   pesoRealKg: number;
   relacionBano: number;
   colorantes: ColoranteInput[];
@@ -397,27 +397,27 @@ export function ejecutarMotorQuimico(params: {
   let secuencia: BanoQuimico[];
 
   switch (composicion) {
-    case ComposicionFibra.ALGODON:
+    case 'ALGODON':
       secuencia = generarRutaAlgodon(litrosAgua, sumaConcentracion);
       break;
 
-    case ComposicionFibra.NYLON:
+    case 'NYLON':
       secuencia = generarRutaNylon(litrosAgua);
       break;
 
-    case ComposicionFibra.POLIESTER:
+    case 'POLIESTER':
       secuencia = generarRutaPoliester(litrosAgua);
       break;
 
-    case ComposicionFibra.MULTIFIBRA_ALGODON_NYLON:
+    case 'MULTIFIBRA_ALGODON_NYLON':
       secuencia = generarRutaAlgodonNylon(litrosAgua, sumaConcentracion);
       break;
 
-    case ComposicionFibra.MULTIFIBRA_ALGODON_POLIESTER:
+    case 'MULTIFIBRA_ALGODON_POLIESTER':
       secuencia = generarRutaAlgodonPoliester(litrosAgua, sumaConcentracion);
       break;
 
-    case ComposicionFibra.MULTIFIBRA_NYLON_POLIESTER:
+    case 'MULTIFIBRA_NYLON_POLIESTER':
       secuencia = generarRutaNylonPoliester(litrosAgua);
       break;
 

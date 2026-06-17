@@ -1,5 +1,6 @@
 // =============================================================================
 // SERVITEX Frontend — API Service: Recetas Técnicas
+// Actualizado para FK-based catalog (articuloId, composicionFibraCodigo, coloranteId)
 // =============================================================================
 import type { CrearRecetaInput, RecetaConMotor, RecetaListItem } from '../types/recetas';
 import type { ApiResponse } from '../types/ordenes';
@@ -14,7 +15,11 @@ async function handle<T>(res: Response): Promise<T> {
   return (json as ApiResponse<T>).data;
 }
 
-/** POST /api/recetas */
+/**
+ * POST /api/recetas
+ * Body: { detalleOrdenId, pesoRealKg, articuloId, composicionFibraCodigo, relacionBano,
+ *         descripcionColor, colorantes: [{coloranteId, porcentaje}], observacionesTecnicas? }
+ */
 export async function crearReceta(input: CrearRecetaInput): Promise<RecetaConMotor> {
   const res = await fetch(`${BASE}/recetas`, {
     method: 'POST',

@@ -1,8 +1,9 @@
 // =============================================================================
-// SERVITEX — Schema de Base de Datos (Prisma ORM)
-// Versión: 2.0.0
-// Entregable 2: Módulo Formulario + Procedimientos Químicos (Secciones 2 y 3)
-// Tipado Estricto: Todos los valores físicos, químicos y monetarios son Float.
+// SERVITEX — Schema de Base de Datos Normalizado (Prisma ORM)
+// Versión: 3.0.0 — 20 Tablas Normalizadas hasta 3FN
+// Catálogos: tipos_cliente, estados_orden, composiciones_fibra,
+//            articulos_textiles, unidades_medida, colorantes_catalogo,
+//            colorantes_plantilla, tipos_incidencia, fases_proceso, tipos_reporte
 // =============================================================================
 
 generator client {
@@ -14,210 +15,315 @@ datasource db {
 }
 
 // =============================================================================
-// ENUMERACIONES
+// CATÁLOGOS (Tablas 11–20) — Solo inserción, nunca modificación por el usuario
 // =============================================================================
 
-/// Tipos de cliente reconocidos por el sistema comercial de SERVITEX.
-enum TipoCliente {
-  EMPRESA
-  PERSONA_NATURAL
-  TALLER_EXTERNO
-  DISTRIBUIDOR
+/// CATÁLOGO 1: Tipos de cliente válidos en el sistema.
+model TipoCliente {
+  id          Int       @id @default(autoincrement())
+  codigo      String    @unique @db.VarChar(30)
+  etiqueta    String    @db.VarChar(100)
+  descripcion String?   @db.VarChar(300)
+
+  clientes    Cliente[]
+
+  @@map("tipos_cliente")
 }
 
-/// Composición de fibra del artículo.
-/// Determina la ruta química automática que el sistema ejecutará (Sección 3.2 y 3.3).
-enum ComposicionFibra {
-  ALGODON                      // Ruta: 5 baños de teñido + 4 de preblanqueo = 9 total
-  NYLON                        // Ruta: 4 baños (ácido directo en baño 1, sin neutralizado separado)
-  POLIESTER                    // Ruta: 4 baños (ácido directo en baño 1, sin neutralizado separado)
-  MULTIFIBRA_ALGODON_NYLON     // Ruta: 7 baños (neutralizado del algodón eliminado)
-  MULTIFIBRA_ALGODON_POLIESTER // Ruta: 7 baños (neutralizado del algodón eliminado)
-  MULTIFIBRA_NYLON_POLIESTER   // Ruta: 7 baños (Poliéster primero, luego Nylon)
+/// CATÁLOGO 2: Estados posibles del ciclo de vida de una Orden de Compra.
+model EstadoOrden {
+  id              Int              @id @default(autoincrement())
+  codigo          String           @unique @db.VarChar(30)
+  etiqueta        String           @db.VarChar(100)
+  descripcion     String?          @db.VarChar(300)
+  esEstadoFinal   Boolean          @default(false)
+
+  ordenes         OrdenCompra[]
+  bitacoraAntes   BitacoraEstado[] @relation("EstadoAnterior")
+  bitacoraDespues BitacoraEstado[] @relation("EstadoNuevo")
+
+  @@map("estados_orden")
 }
 
-/// Estado del ciclo de vida de una Orden de Compra.
-enum EstadoOrden {
-  PENDIENTE    // Registrada, sin iniciar producción
-  EN_PROCESO   // Al menos un lote está en formulario técnico
-  COMPLETADA   // Todos los lotes han sido procesados
-  ANULADA      // Cancelada por el cliente o el taller
+/// CATÁLOGO 3: Composiciones de fibra textil — determina la ruta del Motor Químico.
+model ComposicionFibra {
+  id               Int               @id @default(autoincrement())
+  codigo           String            @unique @db.VarChar(50)
+  etiqueta         String            @db.VarChar(150)
+  totalBanos       Int
+  descripcionRuta  String?           @db.VarChar(300)
+
+  recetas          RecetaTecnica[]
+  plantillas       PlantillaReceta[]
+
+  @@map("composiciones_fibra")
+}
+
+/// CATÁLOGO 4: Artículos textiles procesables en el taller.
+model ArticuloTextil {
+  id          Int             @id @default(autoincrement())
+  nombre      String          @unique @db.VarChar(150)
+  descripcion String?         @db.VarChar(300)
+  activo      Boolean         @default(true)
+
+  detalles    DetalleOrden[]
+  recetas     RecetaTecnica[]
+
+  @@map("articulos_textiles")
+}
+
+/// CATÁLOGO 5: Unidades de medida para los lotes de teñido.
+model UnidadMedida {
+  id       Int            @id @default(autoincrement())
+  codigo   String         @unique @db.VarChar(20)
+  simbolo  String         @db.VarChar(10)
+  etiqueta String         @db.VarChar(100)
+
+  detalles DetalleOrden[]
+
+  @@map("unidades_medida")
+}
+
+/// CATÁLOGO 6: Catálogo maestro de colorantes disponibles en el taller.
+model ColoranteCatalogo {
+  id                 Int                  @id @default(autoincrement())
+  nombre             String               @unique @db.VarChar(200)
+  activo             Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+
+  usosEnRecetas      ColoranteFormula[]
+  usosEnPlantillas   ColorantePlantilla[]
+
+  @@map("colorantes_catalogo")
+}
+
+/// CATÁLOGO 7: Tipos de incidencia que pueden ocurrir durante el proceso de teñido.
+model TipoIncidencia {
+  id          Int                 @id @default(autoincrement())
+  codigo      String              @unique @db.VarChar(30)
+  etiqueta    String              @db.VarChar(150)
+  descripcion String?             @db.VarChar(300)
+
+  incidencias IncidenciaProceso[]
+
+  @@map("tipos_incidencia")
+}
+
+/// CATÁLOGO 8: Fases del proceso de teñido generadas por el Motor Químico.
+model FaseProceso {
+  id          Int     @id @default(autoincrement())
+  codigo      String  @unique @db.VarChar(30)
+  etiqueta    String  @db.VarChar(150)
+  orden       Int
+  descripcion String? @db.VarChar(300)
+
+  @@map("fases_proceso")
+}
+
+/// CATÁLOGO 9: Tipos de reporte disponibles en el módulo de Reportes Generales.
+model TipoReporte {
+  id          Int               @id @default(autoincrement())
+  codigo      String            @unique @db.VarChar(50)
+  etiqueta    String            @db.VarChar(200)
+  descripcion String?           @db.VarChar(300)
+
+  reportes    ReporteGenerado[]
+
+  @@map("tipos_reporte")
 }
 
 // =============================================================================
-// MODELO: Cliente
-// Catálogo maestro de clientes. Reutilizable en múltiples órdenes de compra.
+// TABLAS TRANSACCIONALES (1–5) — Módulos de OC y Recetas
 // =============================================================================
+
+/// TABLA 1: Catálogo maestro de clientes. Reutilizable en múltiples órdenes.
 model Cliente {
-  id            Int           @id @default(autoincrement())
-  nombre        String        @db.VarChar(200)
-  tipoCliente   TipoCliente
-  ruc           String?       @unique @db.VarChar(11)
-  telefono      String?       @db.VarChar(15)
-  correo        String?       @db.VarChar(150)
-  direccion     String?       @db.VarChar(300)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id            Int         @id @default(autoincrement())
+  nombre        String      @db.VarChar(200)
+  tipoClienteId Int
+  tipoCliente   TipoCliente @relation(fields: [tipoClienteId], references: [id])
+  ruc           String?     @unique @db.VarChar(11)
+  telefono      String?     @db.VarChar(15)
+  correo        String?     @db.VarChar(150)
+  direccion     String?     @db.VarChar(300)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   ordenes       OrdenCompra[]
 
-  @@unique([nombre, tipoCliente], name: "nombre_tipoCliente")
+  @@unique([nombre, tipoClienteId], name: "nombre_tipoCliente")
   @@map("clientes")
 }
 
-// =============================================================================
-// MODELO: OrdenCompra (CABECERA)
-// Datos fijos que el usuario registra una sola vez al inicio.
-// Regla: Una OrdenCompra tiene MUCHOS DetalleOrden (teñidos individuales).
-// =============================================================================
+/// TABLA 2: Cabecera de cada pedido comercial.
 model OrdenCompra {
-  id               Int           @id @default(autoincrement())
-  numeroOC         String        @unique @db.VarChar(50)
-  clienteId        Int
-  cliente          Cliente       @relation(fields: [clienteId], references: [id])
-  estado           EstadoOrden   @default(PENDIENTE)
-  observaciones    String?       @db.Text
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  id            Int          @id @default(autoincrement())
+  numeroOC      String       @unique @db.VarChar(50)
+  clienteId     Int
+  cliente       Cliente      @relation(fields: [clienteId], references: [id])
+  estadoId      Int
+  estado        EstadoOrden  @relation(fields: [estadoId], references: [id])
+  observaciones String?      @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  detalles         DetalleOrden[]
+  detalles      DetalleOrden[]
+  notaEntrega   NotaEntrega?
+  bitacora      BitacoraEstado[]
 
   @@map("ordenes_compra")
 }
 
-// =============================================================================
-// MODELO: DetalleOrden (FILAS DINÁMICAS — Teñido Individual)
-// Cada fila es un lote de teñido independiente asociado a una OC.
-// =============================================================================
+/// TABLA 3: Cada lote de teñido asociado a una OC.
 model DetalleOrden {
-  id                  Int           @id @default(autoincrement())
-  ordenCompraId       Int
-  ordenCompra         OrdenCompra   @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
-  cantidad            Float
-  unidadMedida        String        @default("Metros") @db.VarChar(20)
-  descripcionArticulo String        @db.VarChar(300)
-  colorSolicitado     String        @db.VarChar(150)
-  precioPorMetro      Float
-  total               Float
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
+  id              Int            @id @default(autoincrement())
+  ordenCompraId   Int
+  ordenCompra     OrdenCompra    @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  articuloId      Int
+  articulo        ArticuloTextil @relation(fields: [articuloId], references: [id])
+  unidadMedidaId  Int
+  unidadMedida    UnidadMedida   @relation(fields: [unidadMedidaId], references: [id])
+  cantidad        Float
+  colorSolicitado String         @db.VarChar(150)
+  precioPorMetro  Float
+  total           Float
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  recetaTecnica       RecetaTecnica?
+  recetaTecnica   RecetaTecnica?
+  incidencias     IncidenciaProceso[]
 
   @@map("detalles_orden")
 }
 
-// =============================================================================
-// MODELO: RecetaTecnica (FORMULARIO TÉCNICO — Secciones 2 y 3)
-// Expandido en Entregable 2 con todos los campos de laboratorio.
-// Vinculada 1-a-1 con DetalleOrden y 1-N con ColoranteFormula.
-//
-// TIPADO ESTRICTO (obligatorio por documento SERVITEX):
-//   pesoRealKg     → Float (admite decimales de balanza: 1.75 kg)
-//   relacionBano   → Float (parte numérica de 1:X, ej. 40.0)
-//   litrosAgua     → Float (calculado: pesoRealKg × relacionBano)
-//   nivelIntensidad→ Float (nivel 1.0–4.0 según suma de %% de colorantes)
-// =============================================================================
+/// TABLA 4: Formulario técnico de laboratorio para un lote. Relación 1:1 con DetalleOrden.
 model RecetaTecnica {
   id                    Int              @id @default(autoincrement())
-
-  /// Relación 1-1: cada RecetaTecnica pertenece a un único DetalleOrden (lote).
   detalleOrdenId        Int              @unique
   detalleOrden          DetalleOrden     @relation(fields: [detalleOrdenId], references: [id], onDelete: Cascade)
-
-  // ------------------------------------------------------------------
-  // SECCIÓN 2.1 — DATOS FÍSICOS DE ENTRADA
-  // ------------------------------------------------------------------
-
-  /// Peso real del artículo medido en balanza de planta. Float obligatorio.
-  /// Es la base de todos los cálculos de gramos de productos químicos.
-  /// Ejemplo: 2.0 (kg)
+  plantillaId           Int?
+  plantilla             PlantillaReceta? @relation(fields: [plantillaId], references: [id], onDelete: SetNull)
+  articuloId            Int
+  articulo              ArticuloTextil   @relation(fields: [articuloId], references: [id])
+  composicionFibraId    Int
+  composicionFibra      ComposicionFibra @relation(fields: [composicionFibraId], references: [id])
   pesoRealKg            Float
-
-  /// Tipo de artículo textil que ingresa al proceso.
-  /// Ejemplo: "Avío", "Prenda", "Cierre", "Tela cruda", "Hilo".
-  articulo              String           @db.VarChar(150)
-
-  /// Composición de fibra. Determina la ruta química automática del sistema.
-  /// Ver enum ComposicionFibra para las rutas disponibles (Sección 3.2 / 3.3).
-  composicionFibra      ComposicionFibra
-
-  /// Relación de Baño: se almacena solo la parte numérica de la relación 1:X.
-  /// Ejemplo: para una relación 1:40 se almacena 40.0
-  /// Regla de cálculo: litrosAgua = pesoRealKg × relacionBano
-  /// El mismo volumen se aplica a TODOS los baños del proceso.
   relacionBano          Float
-
-  /// Litros de agua por baño, calculados automáticamente por el backend al guardar.
-  /// Fórmula: pesoRealKg × relacionBano
-  /// Ejemplo: 2 kg × 40 = 80.0 litros por cada uso de agua.
   litrosAgua            Float
-
-  // ------------------------------------------------------------------
-  // SECCIÓN 2.2 — FÓRMULA DEL COLOR
-  // Relación normalizada: una receta tiene MUCHOS ColoranteFormula.
-  // Reemplaza el campo formulaColorJson del Entregable 1.
-  // ------------------------------------------------------------------
-
-  /// Nombre descriptivo del color objetivo a producir.
-  /// Ejemplo: "Keeneland Khaki", "Navy Blue", "Coral Reef".
   descripcionColor      String           @db.VarChar(200)
-
-  /// Nivel de intensidad calculado automáticamente por el sistema (Sección 3.4).
-  /// Se determina sumando los porcentajes de todos los colorantes de la fórmula:
-  ///   1.0 = Pasteles       (suma ≤ 0.01%)
-  ///   2.0 = Claros         (suma > 0.01% y ≤ 0.1%)
-  ///   3.0 = Intermedios    (suma > 0.1% y ≤ 1.0%)
-  ///   4.0 = Intensos       (suma > 1.0%)
-  /// Float obligatorio — permite representar el nivel como valor numérico exacto.
   nivelIntensidad       Float
-
-  // ------------------------------------------------------------------
-  // SECCIÓN 2.3 — OBSERVACIONES TÉCNICAS
-  // ------------------------------------------------------------------
-
-  /// Notas libres del dueño: incidencias o excepciones del cliente.
-  /// Ejemplo: "cliente solicita omitir suavizado", "repetir enjuague 2 veces".
   observacionesTecnicas String?          @db.Text
-
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
-  /// Relación 1-N: una receta tiene muchos colorantes con sus porcentajes.
   colorantes            ColoranteFormula[]
 
   @@map("recetas_tecnicas")
 }
 
-// =============================================================================
-// MODELO: ColoranteFormula (FÓRMULA DEL COLOR — Sección 2.2)
-// Cada fila representa un colorante individual con su porcentaje en la fórmula.
-// Reemplaza el campo formulaColorJson (JSON plano) por una relación normalizada.
-//
-// Regla de UI: la interfaz filtra los colorantes disponibles según la
-// composición de fibra de la RecetaTecnica antes de mostrarlos al usuario.
-//
-// TIPADO ESTRICTO:
-//   porcentaje → Float obligatorio (ej: 0.5 para 0.5% sobre el peso del artículo)
-// =============================================================================
+/// TABLA 5: Cada colorante individual en la fórmula de una receta.
 model ColoranteFormula {
+  id                Int                @id @default(autoincrement())
+  recetaTecnicaId   Int
+  recetaTecnica     RecetaTecnica      @relation(fields: [recetaTecnicaId], references: [id], onDelete: Cascade)
+  coloranteId       Int
+  colorante         ColoranteCatalogo  @relation(fields: [coloranteId], references: [id])
+  porcentaje        Float
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@map("colorantes_formula")
+}
+
+// =============================================================================
+// TABLAS OPERACIONALES (6–10) — Módulos de Operaciones e Inteligencia
+// =============================================================================
+
+/// TABLA 6: Registro de entrega de una OC al cliente. Relación 1:1 con OrdenCompra.
+model NotaEntrega {
+  id              Int         @id @default(autoincrement())
+  ordenCompraId   Int         @unique
+  ordenCompra     OrdenCompra @relation(fields: [ordenCompraId], references: [id])
+  estado          String      @default("PENDIENTE") @db.VarChar(20)
+  receptorNombre  String      @db.VarChar(200)
+  fechaEntrega    DateTime?
+  observaciones   String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("notas_entrega")
+}
+
+/// TABLA 7: Log inmutable de cambios de estado de una OC. Solo INSERT.
+model BitacoraEstado {
+  id                Int         @id @default(autoincrement())
+  ordenCompraId     Int
+  ordenCompra       OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  estadoAnteriorId  Int
+  estadoAnterior    EstadoOrden @relation("EstadoAnterior", fields: [estadoAnteriorId], references: [id])
+  estadoNuevoId     Int
+  estadoNuevo       EstadoOrden @relation("EstadoNuevo", fields: [estadoNuevoId], references: [id])
+  observacion       String?     @db.VarChar(300)
+  changedAt         DateTime    @default(now())
+
+  @@map("bitacora_estados")
+}
+
+/// TABLA 8: Incidencias ocurridas durante el teñido de un lote.
+model IncidenciaProceso {
   id               Int            @id @default(autoincrement())
-
-  /// FK a la Receta Técnica a la que pertenece este colorante.
-  recetaTecnicaId  Int
-  recetaTecnica    RecetaTecnica  @relation(fields: [recetaTecnicaId], references: [id], onDelete: Cascade)
-
-  /// Nombre del colorante compatible con la fibra seleccionada.
-  /// Ejemplo: "Dianix Blue AC-E", "Ramazol Yellow", "Reactivo Rojo 3BS".
-  nombreColorante  String         @db.VarChar(200)
-
-  /// Porcentaje de concentración del colorante. Float obligatorio.
-  /// Ejemplo: 0.5 representa el 0.5% sobre el peso del artículo.
-  /// La SUMA de todos los porcentajes de la fórmula determina el nivelIntensidad.
-  porcentaje       Float
-
+  detalleOrdenId   Int
+  detalleOrden     DetalleOrden   @relation(fields: [detalleOrdenId], references: [id], onDelete: Cascade)
+  tipoIncidenciaId Int
+  tipoIncidencia   TipoIncidencia @relation(fields: [tipoIncidenciaId], references: [id])
+  descripcion      String         @db.Text
+  accionTomada     String?        @db.Text
+  resuelta         Boolean        @default(false)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  @@map("colorantes_formula")
+  @@map("incidencias_proceso")
+}
+
+/// TABLA 9: Fórmulas de color reutilizables del laboratorio.
+model PlantillaReceta {
+  id                 Int                  @id @default(autoincrement())
+  nombrePlantilla    String               @unique @db.VarChar(200)
+  composicionFibraId Int
+  composicionFibra   ComposicionFibra     @relation(fields: [composicionFibraId], references: [id])
+  relacionBano       Float
+  descripcionColor   String               @db.VarChar(200)
+  activa             Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  colorantes         ColorantePlantilla[]
+  recetas            RecetaTecnica[]
+
+  @@map("plantillas_receta")
+}
+
+/// TABLA 17 (parte de TABLA 9): Colorantes que componen una plantilla de receta.
+model ColorantePlantilla {
+  id          Int               @id @default(autoincrement())
+  plantillaId Int
+  plantilla   PlantillaReceta   @relation(fields: [plantillaId], references: [id], onDelete: Cascade)
+  coloranteId Int
+  colorante   ColoranteCatalogo @relation(fields: [coloranteId], references: [id])
+  porcentaje  Float
+
+  @@map("colorantes_plantilla")
+}
+
+/// TABLA 10: Snapshot de reportes generados. Independiente — sin FK de salida.
+model ReporteGenerado {
+  id            Int         @id @default(autoincrement())
+  tipoReporteId Int
+  tipoReporte   TipoReporte @relation(fields: [tipoReporteId], references: [id])
+  fechaDesde    DateTime
+  fechaHasta    DateTime
+  resumenJson   Json
+  generadoEn    DateTime    @default(now())
+
+  @@map("reportes_generados")
 }

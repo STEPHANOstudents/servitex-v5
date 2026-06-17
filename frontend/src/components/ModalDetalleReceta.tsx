@@ -48,15 +48,17 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
 
   function handleCopiarBase() {
     const preload: RecetaPreload = {
-      pesoRealKg:           String(receta.pesoRealKg),
-      articulo:             receta.articulo,
-      composicionFibra:     receta.composicionFibra,
-      relacionBano:         String(receta.relacionBano),
-      descripcionColor:     receta.descripcionColor,
+      pesoRealKg:            String(receta.pesoRealKg),
+      articulo:              receta.articulo,
+      articuloId:            receta.articuloId,
+      composicionFibra:      receta.composicionFibra,
+      relacionBano:          String(receta.relacionBano),
+      descripcionColor:      receta.descripcionColor,
       observacionesTecnicas: receta.observacionesTecnicas ?? '',
       colorantes: receta.colorantes.map(c => ({
-        nombre:    c.nombreColorante,
-        porcentaje: String(c.porcentaje),
+        nombre:      c.nombreColorante,
+        coloranteId: c.coloranteId,
+        porcentaje:  String(c.porcentaje),
       })),
     };
     onCopiarBase(preload);

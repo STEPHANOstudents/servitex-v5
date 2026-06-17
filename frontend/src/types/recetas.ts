@@ -1,7 +1,9 @@
 // =============================================================================
 // SERVITEX Frontend — Tipos: Módulo Recetas Técnicas
+// Actualizado para FK-based catalog (backend normalizado)
 // =============================================================================
 
+// composicionFibra is now a string code (from catalog)
 export type ComposicionFibra =
   | 'ALGODON'
   | 'NYLON'
@@ -10,16 +12,19 @@ export type ComposicionFibra =
   | 'MULTIFIBRA_ALGODON_POLIESTER'
   | 'MULTIFIBRA_NYLON_POLIESTER';
 
+// ---------------------------------------------------------------------------
+// Input (request body) — colorantes now use coloranteId (FK)
+// ---------------------------------------------------------------------------
 export interface ColoranteInput {
-  nombreColorante: string;
+  coloranteId: number;
   porcentaje: number;
 }
 
 export interface CrearRecetaInput {
   detalleOrdenId: number;
   pesoRealKg: number;
-  articulo: string;
-  composicionFibra: ComposicionFibra;
+  articuloId: number;
+  composicionFibraCodigo: string;
   relacionBano: number;
   descripcionColor: string;
   colorantes: ColoranteInput[];
@@ -44,7 +49,7 @@ export interface BanoQuimico {
 }
 
 export interface MotorQuimicoResultado {
-  composicion: ComposicionFibra;
+  composicion: string;
   pesoRealKg: number;
   relacionBano: number;
   litrosAgua: number;
@@ -55,19 +60,26 @@ export interface MotorQuimicoResultado {
   secuencia: BanoQuimico[];
 }
 
+// ---------------------------------------------------------------------------
+// Response from backend — GET /api/recetas
+// composicionFibra = code string, composicionFibraLabel = display label
+// colorantes response still uses nombreColorante (flattened by backend)
+// ---------------------------------------------------------------------------
 export interface RecetaDB {
   id: number;
   detalleOrdenId: number;
   pesoRealKg: number;
-  articulo: string;
-  composicionFibra: ComposicionFibra;
+  articuloId: number;            // ID del catálogo articulos_textiles
+  articulo: string;              // nombre del artículo (flattened)
+  composicionFibra: string;      // código (e.g. 'ALGODON')
+  composicionFibraLabel: string; // label (e.g. 'Algodón')
   relacionBano: number;
   litrosAgua: number;
   descripcionColor: string;
   nivelIntensidad: number;
   observacionesTecnicas: string | null;
   createdAt: string;
-  colorantes: Array<{ nombreColorante: string; porcentaje: number }>;
+  colorantes: Array<{ coloranteId: number; nombreColorante: string; porcentaje: number }>;
 }
 
 export interface RecetaConMotor {
@@ -90,20 +102,25 @@ export interface RecetaListItem extends RecetaDB {
 export interface RecetaPreload {
   pesoRealKg: string;
   articulo: string;
-  composicionFibra: ComposicionFibra;
+  articuloId: number;
+  composicionFibra: string;
   relacionBano: string;
   descripcionColor: string;
   observacionesTecnicas: string;
-  colorantes: Array<{ nombre: string; porcentaje: string }>;
+  colorantes: Array<{ nombre: string; coloranteId: number; porcentaje: string }>;
 }
 
-// Catálogo de colorantes por fibra
-export interface ColoranteCatalogo {
+// ---------------------------------------------------------------------------
+// Catálogo estático de colorantes por fibra (fallback local)
+// Se mantiene para el modo sin catálogo de API, pero el componente
+// preferirá el catálogo de la API cuando esté disponible.
+// ---------------------------------------------------------------------------
+export interface ColoranteCatalogoItem {
   nombre: string;
   etiqueta?: 'algodon' | 'nylon' | 'poliester';
 }
 
-const ALGODON_COLORANTES: ColoranteCatalogo[] = [
+const ALGODON_COLORANTES: ColoranteCatalogoItem[] = [
   { nombre: 'Reactivo Rojo 3BS' },
   { nombre: 'Reactivo Rojo H-3B' },
   { nombre: 'Reactivo Amarillo 3RS' },
@@ -118,7 +135,7 @@ const ALGODON_COLORANTES: ColoranteCatalogo[] = [
   { nombre: 'Reactivo Turquesa Br 21' },
 ];
 
-const NYLON_COLORANTES: ColoranteCatalogo[] = [
+const NYLON_COLORANTES: ColoranteCatalogoItem[] = [
   { nombre: 'Ácido Rojo 266' },
   { nombre: 'Ácido Rojo 399' },
   { nombre: 'Ácido Amarillo 119' },
@@ -131,7 +148,7 @@ const NYLON_COLORANTES: ColoranteCatalogo[] = [
   { nombre: 'Ácido Café 282' },
 ];
 
-const POLIESTER_COLORANTES: ColoranteCatalogo[] = [
+const POLIESTER_COLORANTES: ColoranteCatalogoItem[] = [
   { nombre: 'Dianix Blue AC-E' },
   { nombre: 'Dianix Blue UN' },
   { nombre: 'Dianix Yellow AC-E' },
@@ -144,7 +161,7 @@ const POLIESTER_COLORANTES: ColoranteCatalogo[] = [
   { nombre: 'Dianix Rubine CC' },
 ];
 
-export const CATALOGO_COLORANTES: Record<ComposicionFibra, ColoranteCatalogo[]> = {
+export const CATALOGO_COLORANTES_LOCAL: Record<ComposicionFibra, ColoranteCatalogoItem[]> = {
   ALGODON: ALGODON_COLORANTES,
   NYLON:   NYLON_COLORANTES,
   POLIESTER: POLIESTER_COLORANTES,
@@ -169,15 +186,15 @@ export function getNivelClase(nivel: number): string {
   return 'nivel-4';
 }
 
-export function getFibraClase(fibra: ComposicionFibra): string {
+export function getFibraClase(fibra: string): string {
   if (fibra === 'ALGODON')   return 'algodon';
   if (fibra === 'NYLON')     return 'nylon';
   if (fibra === 'POLIESTER') return 'poliester';
   return 'multi';
 }
 
-export function getFibraLabel(fibra: ComposicionFibra): string {
-  const map: Record<ComposicionFibra, string> = {
+export function getFibraLabel(fibra: string): string {
+  const map: Record<string, string> = {
     ALGODON: 'Algodón',
     NYLON: 'Nylon',
     POLIESTER: 'Poliéster',
@@ -185,5 +202,5 @@ export function getFibraLabel(fibra: ComposicionFibra): string {
     MULTIFIBRA_ALGODON_POLIESTER: 'Alg + Poliéster',
     MULTIFIBRA_NYLON_POLIESTER: 'Nylon + Poliéster',
   };
-  return map[fibra];
+  return map[fibra] ?? fibra;
 }

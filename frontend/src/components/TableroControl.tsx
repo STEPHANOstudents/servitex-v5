@@ -135,7 +135,7 @@ const MiniCartilla: React.FC<MiniCartillaProps> = ({ orden, onClick }) => {
       {/* Badge de estado */}
       <div className="cartilla-badge">
         <div className="cartilla-badge-dot" />
-        {orden.estado}
+        {orden.estado.etiqueta}
       </div>
 
       {/* DATO 1: Nombre del Cliente — único dato principal visible */}

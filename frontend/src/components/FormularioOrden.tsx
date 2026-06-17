@@ -1,16 +1,18 @@
 // =============================================================================
 // SERVITEX — Componente: FormularioOrden
 // Sección 1: Registro de Órdenes de Compra
-// - Cabecera estática (Número OC, Cliente, Tipo)
+// - Cabecera estática (Número OC, Cliente, Tipo desde catálogo)
 // - Tabla dinámica de filas (+ Añadir otro color)
 // - Resumen financiero en tiempo real
 // - Botón "Guardar Orden Completa"
 // =============================================================================
-import React, { useState, useCallback } from 'react';
-import type { FilaDetalle, TipoCliente, CrearOrdenInput } from '../types/ordenes';
+import React, { useState, useCallback, useEffect } from 'react';
+import type { FilaDetalle, TipoClienteCodigo, CrearOrdenInput } from '../types/ordenes';
 import FilaDetalleComponent from './FilaDetalle';
 import { crearOrden } from '../services/api';
+import { fetchCatalogos } from '../services/catalogosApi';
 import type { OrdenResponse } from '../types/ordenes';
+import type { TipoCliente, ArticuloTextil, Catalogos } from '../services/catalogosApi';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -23,7 +25,7 @@ function filaVacia(): FilaDetalle {
   return {
     localId: generarId(),
     cantidad: '',
-    descripcionArticulo: '',
+    articuloId: '',
     colorSolicitado: '',
     precioPorMetro: '',
   };
@@ -43,11 +45,12 @@ function calcularResumen(filas: FilaDetalle[]) {
   return { subtotal, igv, total };
 }
 
-const TIPOS_CLIENTE: { value: TipoCliente; label: string }[] = [
-  { value: 'EMPRESA', label: 'Empresa' },
-  { value: 'PERSONA_NATURAL', label: 'Persona Natural' },
-  { value: 'TALLER_EXTERNO', label: 'Taller Externo' },
-  { value: 'DISTRIBUIDOR', label: 'Distribuidor' },
+// Tipos cliente por defecto (fallback si el catálogo no carga)
+const TIPOS_CLIENTE_DEFAULT: TipoCliente[] = [
+  { id: 1, codigo: 'EMPRESA', etiqueta: 'Empresa' },
+  { id: 2, codigo: 'PERSONA_NATURAL', etiqueta: 'Persona Natural' },
+  { id: 3, codigo: 'TALLER_EXTERNO', etiqueta: 'Taller Externo' },
+  { id: 4, codigo: 'DISTRIBUIDOR', etiqueta: 'Distribuidor' },
 ];
 
 // ---------------------------------------------------------------------------
@@ -56,16 +59,17 @@ const TIPOS_CLIENTE: { value: TipoCliente; label: string }[] = [
 interface FormularioOrdenProps {
   onOrdenGuardada: (orden: OrdenResponse) => void;
   onToast: (tipo: 'success' | 'error', mensaje: string) => void;
+  catalogos?: Catalogos | null;
 }
 
 // =============================================================================
 // COMPONENTE
 // =============================================================================
-const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onToast }) => {
+const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onToast, catalogos: catalogosProp }) => {
   // --- Estado cabecera ---
   const [numeroOC, setNumeroOC] = useState('');
   const [clienteNombre, setClienteNombre] = useState('');
-  const [tipoCliente, setTipoCliente] = useState<TipoCliente>('EMPRESA');
+  const [tipoClienteCodigo, setTipoClienteCodigo] = useState<TipoClienteCodigo>('EMPRESA');
   const [observaciones, setObservaciones] = useState('');
 
   // --- Estado tabla ---
@@ -74,6 +78,25 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
   // --- Estado UI ---
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState<Record<string, string>>({});
+
+  // --- Catálogos locales (puede ser pasados por prop o cargados aquí) ---
+  const [tiposCliente, setTiposCliente] = useState<TipoCliente[]>(catalogosProp?.tiposCliente ?? TIPOS_CLIENTE_DEFAULT);
+  const [articulosTextiles, setArticulosTextiles] = useState<ArticuloTextil[]>(catalogosProp?.articulosTextiles ?? []);
+
+  useEffect(() => {
+    if (catalogosProp) {
+      setTiposCliente(catalogosProp.tiposCliente.length > 0 ? catalogosProp.tiposCliente : TIPOS_CLIENTE_DEFAULT);
+      setArticulosTextiles(catalogosProp.articulosTextiles);
+    } else {
+      // Cargar catálogos si no fueron provistos por prop
+      fetchCatalogos().then(cat => {
+        setTiposCliente(cat.tiposCliente.length > 0 ? cat.tiposCliente : TIPOS_CLIENTE_DEFAULT);
+        setArticulosTextiles(cat.articulosTextiles);
+      }).catch(() => {
+        // Mantener defaults
+      });
+    }
+  }, [catalogosProp]);
 
   // ---------------------------------------------------------------------------
   // Manejadores de la tabla dinámica
@@ -118,8 +141,8 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
       if (!f.cantidad || isNaN(c) || c <= 0) {
         nuevosErrores[`fila_${i}_cantidad`] = `Fila ${i + 1}: cantidad inválida.`;
       }
-      if (!f.descripcionArticulo.trim()) {
-        nuevosErrores[`fila_${i}_desc`] = `Fila ${i + 1}: descripción requerida.`;
+      if (!f.articuloId) {
+        nuevosErrores[`fila_${i}_articulo`] = `Fila ${i + 1}: artículo requerido.`;
       }
       if (!f.colorSolicitado.trim()) {
         nuevosErrores[`fila_${i}_color`] = `Fila ${i + 1}: color requerido.`;
@@ -151,11 +174,11 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
       const payload: CrearOrdenInput = {
         numeroOC: numeroOC.trim().toUpperCase(),
         clienteNombre: clienteNombre.trim(),
-        tipoCliente,
+        tipoClienteCodigo,
         observaciones: observaciones.trim() || undefined,
         detalles: filas.map((f) => ({
           cantidad: parseFloat(f.cantidad),
-          descripcionArticulo: f.descripcionArticulo.trim(),
+          articuloId: parseInt(f.articuloId),
           colorSolicitado: f.colorSolicitado.trim(),
           precioPorMetro: parseFloat(f.precioPorMetro),
         })),
@@ -169,7 +192,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
       // Limpiar el formulario
       setNumeroOC('');
       setClienteNombre('');
-      setTipoCliente('EMPRESA');
+      setTipoClienteCodigo('EMPRESA');
       setObservaciones('');
       setFilas([filaVacia()]);
     } catch (err: unknown) {
@@ -224,7 +247,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
             )}
           </div>
 
-          {/* Tipo de Cliente */}
+          {/* Tipo de Cliente — desde catálogo */}
           <div className="form-group">
             <label className="form-label" htmlFor="select-tipo-cliente">
               Tipo de Cliente <span className="required">*</span>
@@ -232,12 +255,12 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
             <select
               id="select-tipo-cliente"
               className="form-input form-select"
-              value={tipoCliente}
-              onChange={(e) => setTipoCliente(e.target.value as TipoCliente)}
+              value={tipoClienteCodigo}
+              onChange={(e) => setTipoClienteCodigo(e.target.value as TipoClienteCodigo)}
             >
-              {TIPOS_CLIENTE.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
+              {tiposCliente.map((t) => (
+                <option key={t.id} value={t.codigo}>
+                  {t.etiqueta}
                 </option>
               ))}
             </select>
@@ -304,7 +327,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
                 <th className="col-num">#</th>
                 <th className="col-cantidad">Cantidad (m)</th>
                 <th className="col-unidad">Unidad</th>
-                <th className="col-descripcion">Descripción del Artículo</th>
+                <th className="col-descripcion">Artículo</th>
                 <th className="col-color">Color Solicitado</th>
                 <th className="col-precio">Precio / Metro</th>
                 <th className="col-total" style={{ textAlign: 'right' }}>Subtotal</th>
@@ -318,6 +341,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
                   fila={fila}
                   indice={i}
                   totalFilas={filas.length}
+                  articulos={articulosTextiles}
                   onChange={handleCambioFila}
                   onEliminar={handleEliminarFila}
                 />
@@ -390,7 +414,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({ onOrdenGuardada, onTo
                 setFilas([filaVacia()]);
                 setNumeroOC('');
                 setClienteNombre('');
-                setTipoCliente('EMPRESA');
+                setTipoClienteCodigo('EMPRESA');
                 setObservaciones('');
                 setErrores({});
               }}

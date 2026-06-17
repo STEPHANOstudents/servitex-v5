@@ -1,10 +1,12 @@
 // =============================================================================
-// SERVITEX — Validador de Recetas Técnicas
+// SERVITEX — Validador de Recetas Técnicas (v3.0 — Esquema Normalizado)
 // =============================================================================
-import { ComposicionFibra } from '@prisma/client';
 import type { CrearRecetaInput, ColoranteInput } from '../types/recetas.types';
 
-const COMPOSICIONES_VALIDAS = Object.values(ComposicionFibra);
+const COMPOSICIONES_VALIDAS = [
+  'ALGODON', 'NYLON', 'POLIESTER',
+  'MULTIFIBRA_ALGODON_NYLON', 'MULTIFIBRA_ALGODON_POLIESTER', 'MULTIFIBRA_NYLON_POLIESTER',
+];
 
 function esNumeroPositivo(v: unknown): v is number {
   return typeof v === 'number' && isFinite(v) && v > 0;
@@ -14,16 +16,13 @@ function esCadenaNoVacia(v: unknown): v is string {
   return typeof v === 'string' && v.trim().length > 0;
 }
 
-function validarColorante(
-  c: unknown,
-  idx: number
-): Record<string, string> {
+function validarColorante(c: unknown, idx: number): Record<string, string> {
   const errores: Record<string, string> = {};
   const col = c as Partial<ColoranteInput>;
   const pre = `colorantes[${idx}]`;
 
-  if (!esCadenaNoVacia(col.nombreColorante)) {
-    errores[`${pre}.nombreColorante`] = `Colorante ${idx + 1}: nombre requerido.`;
+  if (!col.coloranteId || typeof col.coloranteId !== 'number' || col.coloranteId <= 0) {
+    errores[`${pre}.coloranteId`] = `Colorante ${idx + 1}: debe seleccionar del catálogo.`;
   }
   if (typeof col.porcentaje !== 'number' || !isFinite(col.porcentaje) || col.porcentaje <= 0) {
     errores[`${pre}.porcentaje`] =
@@ -45,38 +44,31 @@ export function validarCrearReceta(body: unknown): {
 
   const b = body as Partial<CrearRecetaInput>;
 
-  // detalleOrdenId
   if (!b.detalleOrdenId || typeof b.detalleOrdenId !== 'number' || b.detalleOrdenId <= 0) {
     errores['detalleOrdenId'] = 'El ID del detalle de orden es obligatorio y debe ser positivo.';
   }
 
-  // pesoRealKg — Float obligatorio
   if (!esNumeroPositivo(b.pesoRealKg)) {
-    errores['pesoRealKg'] = 'El peso real debe ser un número Float positivo (ej: 2.5).';
+    errores['pesoRealKg'] = 'El peso real debe ser un número Float positivo.';
   }
 
-  // articulo
-  if (!esCadenaNoVacia(b.articulo)) {
-    errores['articulo'] = 'El artículo es obligatorio (ej: "Avío", "Prenda").';
+  if (!b.articuloId || typeof b.articuloId !== 'number' || b.articuloId <= 0) {
+    errores['articuloId'] = 'Debe seleccionar un artículo del catálogo.';
   }
 
-  // composicionFibra
-  if (!b.composicionFibra || !COMPOSICIONES_VALIDAS.includes(b.composicionFibra)) {
-    errores['composicionFibra'] =
-      `Composición de fibra inválida. Valores: ${COMPOSICIONES_VALIDAS.join(', ')}.`;
+  if (!b.composicionFibraCodigo || !COMPOSICIONES_VALIDAS.includes(b.composicionFibraCodigo)) {
+    errores['composicionFibraCodigo'] =
+      `Composición inválida. Valores: ${COMPOSICIONES_VALIDAS.join(', ')}.`;
   }
 
-  // relacionBano — Float obligatorio
   if (!esNumeroPositivo(b.relacionBano)) {
     errores['relacionBano'] = 'La relación de baño debe ser un Float positivo (ej: 40.0).';
   }
 
-  // descripcionColor
   if (!esCadenaNoVacia(b.descripcionColor)) {
     errores['descripcionColor'] = 'La descripción del color es obligatoria.';
   }
 
-  // colorantes — mínimo 1, todos válidos
   if (!Array.isArray(b.colorantes) || b.colorantes.length === 0) {
     errores['colorantes'] = 'Debe incluirse al menos un colorante en la fórmula.';
   } else {

@@ -1,14 +1,17 @@
 // =============================================================================
 // SERVITEX — Componente: FilaDetalle
 // Una fila individual de la tabla dinámica de colores/lotes
+// Actualizado: descripcionArticulo → articuloId (SELECT desde catálogo)
 // =============================================================================
 import React from 'react';
 import type { FilaDetalle } from '../types/ordenes';
+import type { ArticuloTextil } from '../services/catalogosApi';
 
 interface FilaDetalleProps {
   fila: FilaDetalle;
   indice: number;
   totalFilas: number;
+  articulos: ArticuloTextil[];
   onChange: (localId: string, campo: keyof Omit<FilaDetalle, 'localId'>, valor: string) => void;
   onEliminar: (localId: string) => void;
 }
@@ -24,6 +27,7 @@ const FilaDetalleComponent: React.FC<FilaDetalleProps> = ({
   fila,
   indice,
   totalFilas,
+  articulos,
   onChange,
   onEliminar,
 }) => {
@@ -63,17 +67,23 @@ const FilaDetalleComponent: React.FC<FilaDetalleProps> = ({
         />
       </td>
 
-      {/* Descripción del artículo */}
+      {/* Artículo — SELECT desde catálogo */}
       <td>
-        <input
-          id={`fila-descripcion-${fila.localId}`}
-          type="text"
+        <select
+          id={`fila-articulo-${fila.localId}`}
           className="tabla-input"
-          placeholder="Ej: Avío, Prenda, Tela..."
-          value={fila.descripcionArticulo}
-          onChange={(e) => onChange(fila.localId, 'descripcionArticulo', e.target.value)}
-          aria-label={`Descripción artículo fila ${indice + 1}`}
-        />
+          value={fila.articuloId}
+          onChange={(e) => onChange(fila.localId, 'articuloId', e.target.value)}
+          aria-label={`Artículo fila ${indice + 1}`}
+          style={{ cursor: 'pointer' }}
+        >
+          <option value="">— Artículo —</option>
+          {articulos.map((a) => (
+            <option key={a.id} value={String(a.id)}>
+              {a.nombre}
+            </option>
+          ))}
+        </select>
       </td>
 
       {/* Color solicitado */}

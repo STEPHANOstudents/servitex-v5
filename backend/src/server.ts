@@ -1,8 +1,10 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import ordenesRouter from './routes/ordenes.routes';
-import recetasRouter from './routes/recetas.routes';
+import ordenesRouter   from './routes/ordenes.routes';
+import recetasRouter   from './routes/recetas.routes';
+import catalogosRouter from './routes/catalogos.routes';
+
 
 dotenv.config();
 
@@ -44,7 +46,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'OK',
     message: 'SERVITEX API funcionando correctamente',
-    version: '2.0.0',
+    version: '3.0.0',
     timestamp: new Date().toISOString(),
   });
 });
@@ -52,12 +54,17 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // ---------------------------------------------------------------------------
 // Rutas de la API — Módulo 1: Órdenes de Compra
 // ---------------------------------------------------------------------------
-app.use('/api/ordenes', ordenesRouter);
+app.use('/api/ordenes',    ordenesRouter);
 
 // ---------------------------------------------------------------------------
 // Rutas de la API — Módulo 2: Recetas Técnicas + Motor Químico
 // ---------------------------------------------------------------------------
-app.use('/api/recetas', recetasRouter);
+app.use('/api/recetas',    recetasRouter);
+
+// ---------------------------------------------------------------------------
+// Rutas de la API — Catálogos (valores válidos para formularios)
+// ---------------------------------------------------------------------------
+app.use('/api/catalogos',  catalogosRouter);
 
 // ---------------------------------------------------------------------------
 // Manejador 404 — Ruta no encontrada

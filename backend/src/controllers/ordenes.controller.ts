@@ -11,7 +11,6 @@ import { Request, Response } from 'express';
 import { ordenesService } from '../services/ordenes.service';
 import { validarCrearOrden } from '../validators/ordenes.validator';
 import { ActualizarEstadoInput, ApiError, ApiResponse } from '../types/ordenes.types';
-import { EstadoOrden } from '@prisma/client';
 
 // ---------------------------------------------------------------------------
 // Helper: construir respuesta de error estándar
@@ -115,7 +114,7 @@ export async function obtenerOrdenes(req: Request, res: Response): Promise<void>
     const limiteNum = Math.min(100, Math.max(1, parseInt(limite, 10) || 20));
 
     const resultado = await ordenesService.obtenerOrdenes({
-      estado: estado as EstadoOrden | undefined,
+      estadoCodigo: estado,
       clienteId: clienteId ? parseInt(clienteId, 10) : undefined,
       pagina: paginaNum,
       limite: limiteNum,
@@ -197,10 +196,10 @@ export async function actualizarEstadoOrden(req: Request, res: Response): Promis
       return;
     }
 
-    const { estado } = req.body as Partial<ActualizarEstadoInput>;
-    const estadosValidos = Object.values(EstadoOrden);
+    const { estadoCodigo } = req.body as Partial<ActualizarEstadoInput>;
+    const estadosValidos = ['PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'ANULADA'];
 
-    if (!estado || !estadosValidos.includes(estado)) {
+    if (!estadoCodigo || !estadosValidos.includes(estadoCodigo)) {
       errorResponse(
         res,
         400,
@@ -209,14 +208,14 @@ export async function actualizarEstadoOrden(req: Request, res: Response): Promis
       return;
     }
 
-    const ordenActualizada = await ordenesService.actualizarEstado(id, estado);
+    const ordenActualizada = await ordenesService.actualizarEstado(id, { estadoCodigo });
 
     if (!ordenActualizada) {
       errorResponse(res, 404, `No se encontró la Orden de Compra con ID ${id}.`);
       return;
     }
 
-    successResponse(res, 200, `Estado actualizado a "${estado}" exitosamente.`, ordenActualizada);
+    successResponse(res, 200, `Estado actualizado a "${estadoCodigo}" exitosamente.`, ordenActualizada);
   } catch (error: unknown) {
     console.error('[actualizarEstadoOrden] Error inesperado:', error);
     errorResponse(res, 500, 'Error interno del servidor al actualizar el estado.');
