@@ -17,7 +17,7 @@ export interface ColoranteInput {
 export interface CrearRecetaInput {
   detalleOrdenId:        number;
   pesoRealKg:            number;
-  articuloId:            number;  // ID del catálogo articulos_textiles
+  articuloNombre:        string;  // Nombre del artículo (texto libre)
   composicionFibraCodigo: string; // 'ALGODON' | 'NYLON' | 'POLIESTER' | ...
   relacionBano:          number;
   descripcionColor:      string;
@@ -75,6 +75,12 @@ export interface RecetaResponse {
     descripcionColor:      string;
     nivelIntensidad:       number;
     observacionesTecnicas: string | null;
+    estado:                string;   // 'FORMULACION' | 'PROCESO' | 'APROBADO'
+    secuenciaBanos:        any;      // secuencia de baños guardada
+    iteraciones:           any;      // historial de iteraciones
+    colorHex?:             string | null;
+    colorRgb?:             any;
+    colorMiniatura?:       string | null;
     createdAt:             string;
     colorantes: Array<{
       coloranteId:     number;   // ID del catálogo colorantes_catalogo
@@ -99,6 +105,12 @@ export interface RecetaListDTO {
   descripcionColor:      string;
   nivelIntensidad:       number;
   observacionesTecnicas: string | null;
+  estado:                string;
+  secuenciaBanos:        any;
+  iteraciones:           any;
+  colorHex?:             string | null;
+  colorRgb?:             any;
+  colorMiniatura?:       string | null;
   createdAt:             string;
   colorantes: Array<{
     coloranteId:     number;

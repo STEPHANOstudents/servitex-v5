@@ -23,7 +23,7 @@ export interface ColoranteInput {
 export interface CrearRecetaInput {
   detalleOrdenId: number;
   pesoRealKg: number;
-  articuloId: number;
+  articuloNombre: string;
   composicionFibraCodigo: string;
   relacionBano: number;
   descripcionColor: string;
@@ -78,6 +78,12 @@ export interface RecetaDB {
   descripcionColor: string;
   nivelIntensidad: number;
   observacionesTecnicas: string | null;
+  estado: string;               // 'FORMULACION' | 'PROCESO' | 'APROBADO'
+  secuenciaBanos: any;          // secuencia de baños original
+  iteraciones: any;             // historial de iteraciones
+  colorHex?: string;
+  colorRgb?: { r: number; g: number; b: number };
+  colorMiniatura?: string;
   createdAt: string;
   colorantes: Array<{ coloranteId: number; nombreColorante: string; porcentaje: number }>;
 }
@@ -198,9 +204,9 @@ export function getFibraLabel(fibra: string): string {
     ALGODON: 'Algodón',
     NYLON: 'Nylon',
     POLIESTER: 'Poliéster',
-    MULTIFIBRA_ALGODON_NYLON: 'Alg + Nylon',
-    MULTIFIBRA_ALGODON_POLIESTER: 'Alg + Poliéster',
-    MULTIFIBRA_NYLON_POLIESTER: 'Nylon + Poliéster',
+    MULTIFIBRA_ALGODON_NYLON: 'Nylon/Algodón',
+    MULTIFIBRA_ALGODON_POLIESTER: 'Algodón/Poliéster',
+    MULTIFIBRA_NYLON_POLIESTER: 'Nylon/Poliéster',
   };
   return map[fibra] ?? fibra;
 }

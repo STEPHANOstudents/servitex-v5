@@ -52,8 +52,8 @@ export function validarCrearReceta(body: unknown): {
     errores['pesoRealKg'] = 'El peso real debe ser un número Float positivo.';
   }
 
-  if (!b.articuloId || typeof b.articuloId !== 'number' || b.articuloId <= 0) {
-    errores['articuloId'] = 'Debe seleccionar un artículo del catálogo.';
+  if (!esCadenaNoVacia(b.articuloNombre)) {
+    errores['articuloNombre'] = 'El nombre del artículo es obligatorio.';
   }
 
   if (!b.composicionFibraCodigo || !COMPOSICIONES_VALIDAS.includes(b.composicionFibraCodigo)) {

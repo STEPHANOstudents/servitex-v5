@@ -24,8 +24,8 @@ function validarDetalle(detalle: unknown, indice: number): Record<string, string
     errores[`${prefijo}.cantidad`] = 'La cantidad debe ser un número positivo (metros).';
   }
 
-  if (!d.articuloId || typeof d.articuloId !== 'number' || d.articuloId <= 0) {
-    errores[`${prefijo}.articuloId`] = 'Debe seleccionar un artículo del catálogo.';
+  if (!esCadenaNoVacia(d.articuloNombre)) {
+    errores[`${prefijo}.articuloNombre`] = 'El artículo es obligatorio.';
   }
 
   if (!esCadenaNoVacia(d.colorSolicitado)) {

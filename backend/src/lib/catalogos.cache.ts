@@ -22,7 +22,7 @@ export async function getCatalogosCache(): Promise<CatalogosCache> {
 
   const [
     tiposCliente,
-    estadosOrden,
+    estadosOrdenRaw,
     composicionesFibra,
     articulosTextiles,
     unidadesMedida,
@@ -37,6 +37,26 @@ export async function getCatalogosCache(): Promise<CatalogosCache> {
     prisma.tipoIncidencia.findMany(),
     prisma.tipoReporte.findMany(),
   ]);
+
+  const estadosOrden = [...estadosOrdenRaw];
+  let entregada = estadosOrden.find((e) => e.codigo === 'ENTREGADA');
+  if (!entregada) {
+    try {
+      const nuevaEntregada = await prisma.estadoOrden.upsert({
+        where: { codigo: 'ENTREGADA' },
+        update: {},
+        create: {
+          codigo: 'ENTREGADA',
+          etiqueta: 'Entregada',
+          descripcion: 'Orden de compra entregada al cliente.',
+          esEstadoFinal: true,
+        },
+      });
+      estadosOrden.push(nuevaEntregada);
+    } catch (err) {
+      console.error('Error al insertar estado ENTREGADA de manera dinámica:', err);
+    }
+  }
 
   _cache = {
     tiposCliente:      new Map(tiposCliente.map(t      => [t.codigo, t.id])),

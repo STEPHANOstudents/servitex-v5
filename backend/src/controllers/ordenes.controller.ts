@@ -196,10 +196,12 @@ export async function actualizarEstadoOrden(req: Request, res: Response): Promis
       return;
     }
 
-    const { estadoCodigo } = req.body as Partial<ActualizarEstadoInput>;
-    const estadosValidos = ['PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'ANULADA'];
+    const body = req.body as any;
+    const estadoInput = body.estado || body.estadoCodigo;
+    const estadoCodigo = String(estadoInput ?? '').trim().toUpperCase();
+    const estadosValidos = ['PENDIENTE', 'EN_PROCESO', 'COMPLETADA', 'ENTREGADA', 'ANULADA'];
 
-    if (!estadoCodigo || !estadosValidos.includes(estadoCodigo)) {
+    if (!estadoInput || !estadosValidos.includes(estadoCodigo)) {
       errorResponse(
         res,
         400,

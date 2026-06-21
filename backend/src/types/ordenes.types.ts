@@ -10,7 +10,7 @@
 /** Datos de una fila individual del pedido (un lote/color). */
 export interface DetalleOrdenInput {
   cantidad:       number;  // metros del lote
-  articuloId:     number;  // ID del catálogo articulos_textiles
+  articuloNombre: string;  // nombre del artículo (texto libre)
   colorSolicitado: string; // color pedido por el cliente (texto libre)
   precioPorMetro: number;  // precio en S/. por metro
   unidadMedidaId?: number; // ID del catálogo unidades_medida (default: Metros)

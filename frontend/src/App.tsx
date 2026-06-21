@@ -18,11 +18,12 @@ import type {
   OrdenResponse, OrdenCompraDB, LiquidacionOC,
 } from './types/ordenes';
 import type { RecetaListItem, RecetaConMotor, RecetaPreload } from './types/recetas';
+import LotesProceso from './components/LotesProceso';
 
 // ---------------------------------------------------------------------------
 // Tipos locales
 // ---------------------------------------------------------------------------
-type Vista = 'formulario' | 'tablero' | 'lab-formulario' | 'lab-tablero';
+type Vista = 'formulario' | 'tablero' | 'lab-formulario' | 'lab-proceso' | 'lab-tablero';
 
 interface ToastMessage {
   id: string;
@@ -49,32 +50,42 @@ const App: React.FC = () => {
   const [cargandoRecetas, setCargandoRecetas] = useState(false);
   const [modalReceta, setModalReceta]       = useState<RecetaConMotor | null>(null);
   const [recetaPreload, setRecetaPreload]   = useState<RecetaPreload | null>(null);
+  const [recetaAjuste, setRecetaAjuste]     = useState<RecetaConMotor | null>(null);
 
   // ── Toasts ──
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
+  const agregarToast = useCallback((tipo: 'success' | 'error', mensaje: string) => {
+    const id = Math.random().toString(36).slice(2, 9);
+    setToasts(prev => [...prev, { id, tipo, mensaje }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500);
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Carga inicial
   // ---------------------------------------------------------------------------
-  useEffect(() => { cargarOrdenes(); cargarRecetas(); }, []);
-
-  async function cargarOrdenes() {
+  const cargarOrdenes = useCallback(async () => {
     setCargandoOrdenes(true);
     try {
       const res = await obtenerOrdenes();
       setOrdenes(res.ordenes.map(orden => ({ orden, liquidacion: calcLiquidacion(orden) })));
     } catch { /* servidor puede estar apagado */ }
     finally { setCargandoOrdenes(false); }
-  }
+  }, []);
 
-  async function cargarRecetas() {
+  const cargarRecetas = useCallback(async () => {
     setCargandoRecetas(true);
     try {
       const lista = await obtenerRecetas();
       setRecetas(lista);
     } catch { /* silencioso */ }
     finally { setCargandoRecetas(false); }
-  }
+  }, []);
+
+  useEffect(() => {
+    cargarOrdenes();
+    cargarRecetas();
+  }, [cargarOrdenes, cargarRecetas]);
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -109,10 +120,19 @@ const App: React.FC = () => {
   // Módulo 2: Callbacks
   // ---------------------------------------------------------------------------
   const handleRecetaGuardada = useCallback((resultado: RecetaConMotor) => {
-    // Añadir al tablero y abrir modal de resultado
-    setRecetas(prev => [resultado.receta as RecetaListItem, ...prev]);
+    // Si ya existe la receta en el listado, la actualizamos; si no, la agregamos al inicio
+    setRecetas(prev => {
+      const idx = prev.findIndex(r => r.id === resultado.receta.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = resultado.receta as RecetaListItem;
+        return next;
+      }
+      return [resultado.receta as RecetaListItem, ...prev];
+    });
     setModalReceta(resultado);
-  }, []);
+    cargarOrdenes();
+  }, [cargarOrdenes]);
 
   const handleSeleccionarReceta = useCallback(async (id: number) => {
     try {
@@ -121,23 +141,27 @@ const App: React.FC = () => {
     } catch {
       agregarToast('error', 'No se pudo cargar el detalle de la receta.');
     }
-  }, []);
+  }, [agregarToast]);
+
+  const handleSeleccionarAjuste = useCallback(async (id: number) => {
+    try {
+      const data = await obtenerRecetaPorId(id);
+      setRecetaAjuste(data);
+      setVista('lab-formulario');
+    } catch {
+      agregarToast('error', 'No se pudo cargar el lote en proceso.');
+    }
+  }, [agregarToast]);
 
   const handleCopiarBase = useCallback((preload: RecetaPreload) => {
     setModalReceta(null);
     setRecetaPreload(preload);
+    setRecetaAjuste(null);
     setVista('lab-formulario');
     agregarToast('success', '📋 Datos cargados como base. Elige un nuevo lote y guarda.');
-  }, []);
+  }, [agregarToast]);
 
-  // ---------------------------------------------------------------------------
-  // Toasts
-  // ---------------------------------------------------------------------------
-  const agregarToast = useCallback((tipo: 'success' | 'error', mensaje: string) => {
-    const id = Math.random().toString(36).slice(2, 9);
-    setToasts(prev => [...prev, { id, tipo, mensaje }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500);
-  }, []);
+
 
   // =============================================================================
   // RENDER
@@ -180,17 +204,27 @@ const App: React.FC = () => {
 
           {/* Módulo 2: Lab */}
           <button id="nav-btn-lab-formulario" type="button"
-            className={`nav-btn ${vista === 'lab-formulario' ? 'active' : ''}`}
-            onClick={() => { setRecetaPreload(null); setVista('lab-formulario'); }}>
+            className={`nav-btn ${vista === 'lab-formulario' && !recetaAjuste ? 'active' : ''}`}
+            onClick={() => { setRecetaPreload(null); setRecetaAjuste(null); setVista('lab-formulario'); }}>
             🧪 Formulario Técnico
+          </button>
+          <button id="nav-btn-lab-proceso" type="button"
+            className={`nav-btn ${vista === 'lab-proceso' || (vista === 'lab-formulario' && recetaAjuste) ? 'active' : ''}`}
+            onClick={() => { setVista('lab-proceso'); }}>
+            ⏳ Lotes en Proceso
+            {recetas.filter(r => r.estado === 'FORMULACION' || r.estado === 'PROCESO').length > 0 && (
+              <span style={{ marginLeft:'6px', background:'var(--accent-gold)', color:'#000', fontSize:'10px', fontWeight:'700', padding:'1px 6px', borderRadius:'99px' }}>
+                {recetas.filter(r => r.estado === 'FORMULACION' || r.estado === 'PROCESO').length}
+              </span>
+            )}
           </button>
           <button id="nav-btn-lab-tablero" type="button"
             className={`nav-btn ${vista === 'lab-tablero' ? 'active' : ''}`}
             onClick={() => setVista('lab-tablero')}>
             📚 Lab Histórico
-            {recetas.length > 0 && (
+            {recetas.filter(r => r.estado === 'APROBADO').length > 0 && (
               <span style={{ marginLeft:'6px', background:'var(--accent-purple)', color:'#fff', fontSize:'10px', fontWeight:'700', padding:'1px 6px', borderRadius:'99px' }}>
-                {recetas.length}
+                {recetas.filter(r => r.estado === 'APROBADO').length}
               </span>
             )}
           </button>
@@ -225,6 +259,16 @@ const App: React.FC = () => {
               ordenes={ordenes}
               onSeleccionarOrden={handleSeleccionarOrden}
               onNuevaOrden={() => setVista('formulario')}
+              onOrdenActualizada={(actualizadaOrden) => {
+                setOrdenes((prev) =>
+                  prev.map((o) =>
+                    o.orden.id === actualizadaOrden.id
+                      ? { orden: actualizadaOrden, liquidacion: calcLiquidacion(actualizadaOrden) }
+                      : o
+                  )
+                );
+              }}
+              onToast={agregarToast}
             />
           )
         )}
@@ -233,17 +277,45 @@ const App: React.FC = () => {
         {vista === 'lab-formulario' && (
           <div>
             <div className="page-header">
-              <h1 className="page-title">🧪 Formulario <span>Técnico</span></h1>
+              <h1 className="page-title">
+                {recetaAjuste ? '⏳ Ajuste de ' : '🧪 Formulario '}
+                <span>Técnico</span>
+              </h1>
               <p className="page-subtitle">
-                Registra la receta de laboratorio — el sistema calcula los baños y gramos de químicos automáticamente
+                {recetaAjuste
+                  ? 'Ajustando porcentajes de colorantes para receta en proceso — baños y auxiliares fijos.'
+                  : 'Registra la receta de laboratorio — el sistema calcula los baños y gramos de químicos automáticamente'}
               </p>
             </div>
             <FormularioReceta
               preload={recetaPreload}
-              onRecetaGuardada={handleRecetaGuardada}
+              recetaAjuste={recetaAjuste}
+              onRecetaGuardada={(resultado) => {
+                handleRecetaGuardada(resultado);
+                if (recetaAjuste) {
+                  setRecetaAjuste(null);
+                  setVista('lab-proceso');
+                }
+              }}
+              onCancelarAjuste={() => {
+                setRecetaAjuste(null);
+                setVista('lab-proceso');
+              }}
               onToast={agregarToast}
             />
           </div>
+        )}
+
+        {/* ── Vista: Lotes en Proceso (Lab) ── */}
+        {vista === 'lab-proceso' && (
+          <LotesProceso
+            onSeleccionarAjuste={handleSeleccionarAjuste}
+            onNuevaReceta={() => {
+              setRecetaAjuste(null);
+              setVista('lab-formulario');
+            }}
+            onToast={agregarToast}
+          />
         )}
 
         {/* ── Vista: Lab Histórico ── */}
@@ -255,9 +327,12 @@ const App: React.FC = () => {
             </div>
           ) : (
             <TableroRecetas
-              recetas={recetas}
+              recetas={recetas.filter(r => r.estado === 'APROBADO')}
               onSeleccionar={handleSeleccionarReceta}
-              onNuevaReceta={() => setVista('lab-formulario')}
+              onNuevaReceta={() => {
+                setRecetaAjuste(null);
+                setVista('lab-formulario');
+              }}
             />
           )
         )}
@@ -282,6 +357,7 @@ const App: React.FC = () => {
           data={modalReceta}
           onCerrar={() => setModalReceta(null)}
           onCopiarBase={handleCopiarBase}
+          onActualizarReceta={handleRecetaGuardada}
         />
       )}
 

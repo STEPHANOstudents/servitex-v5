@@ -6,6 +6,9 @@ import {
   crearReceta,
   obtenerRecetas,
   obtenerRecetaPorId,
+  registrarIteracion,
+  aprobarReceta,
+  guardarColor,
 } from '../controllers/recetas.controller';
 
 const router: Router = Router();
@@ -30,5 +33,23 @@ router.get('/', obtenerRecetas);
  * (secuencia de baños, litros y gramos de cada producto).
  */
 router.get('/:id', obtenerRecetaPorId);
+
+/**
+ * POST /api/recetas/:id/iteracion
+ * Registra una nueva iteración (ajuste) de colorantes en la receta.
+ */
+router.post('/:id/iteracion', registrarIteracion);
+
+/**
+ * POST /api/recetas/:id/aprobar
+ * Marca la receta técnica como APROBADO (fórmula final).
+ */
+router.post('/:id/aprobar', aprobarReceta);
+
+/**
+ * PATCH /api/recetas/:id/color
+ * Guarda colorHex, colorRgb y colorMiniatura de referencia.
+ */
+router.patch('/:id/color', guardarColor);
 
 export default router;

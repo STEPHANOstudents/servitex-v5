@@ -300,8 +300,8 @@ body {
   width: 100%;
   padding: 9px 12px;
   background: var(--bg-input);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 14px;
   font-family: var(--font-base);
@@ -311,7 +311,7 @@ body {
 
 .form-input:focus {
   border-color: var(--accent-teal);
-  box-shadow: 0 0 0 3px var(--accent-teal-glow);
+  box-shadow: 0 0 0 2px var(--accent-teal-glow);
 }
 
 .form-input::placeholder { color: var(--text-muted); }
@@ -415,10 +415,10 @@ body {
 .tabla-detalles th {
   padding: 10px 12px;
   font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: none;
+  letter-spacing: normal;
   text-align: left;
   white-space: nowrap;
 }
@@ -437,7 +437,7 @@ body {
   width: 100%;
   padding: 7px 10px;
   background: var(--bg-input);
-  border: 1px solid var(--border-medium);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 13px;
@@ -476,6 +476,8 @@ body {
   font-size: 13px;
   transition: all var(--transition);
   font-family: var(--font-base);
+  opacity: 0;
+  visibility: hidden;
 }
 
 .btn-eliminar-fila:hover:not(:disabled) {
@@ -484,7 +486,14 @@ body {
   color: var(--accent-red);
 }
 
-.btn-eliminar-fila:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-eliminar-fila:disabled {
+  display: none;
+}
+
+.tabla-detalles tr:hover .btn-eliminar-fila {
+  opacity: 1;
+  visibility: visible;
+}
 
 .tabla-actions {
   display: flex;

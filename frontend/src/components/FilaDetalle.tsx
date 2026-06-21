@@ -1,17 +1,15 @@
 // =============================================================================
 // SERVITEX — Componente: FilaDetalle
 // Una fila individual de la tabla dinámica de colores/lotes
-// Actualizado: descripcionArticulo → articuloId (SELECT desde catálogo)
+// Actualizado: artículo como texto libre e inputs ordenados
 // =============================================================================
 import React from 'react';
 import type { FilaDetalle } from '../types/ordenes';
-import type { ArticuloTextil } from '../services/catalogosApi';
 
 interface FilaDetalleProps {
   fila: FilaDetalle;
   indice: number;
   totalFilas: number;
-  articulos: ArticuloTextil[];
   onChange: (localId: string, campo: keyof Omit<FilaDetalle, 'localId'>, valor: string) => void;
   onEliminar: (localId: string) => void;
 }
@@ -27,7 +25,6 @@ const FilaDetalleComponent: React.FC<FilaDetalleProps> = ({
   fila,
   indice,
   totalFilas,
-  articulos,
   onChange,
   onEliminar,
 }) => {
@@ -35,12 +32,40 @@ const FilaDetalleComponent: React.FC<FilaDetalleProps> = ({
 
   return (
     <tr>
-      {/* Número de fila */}
+      {/* 1. Número de fila */}
       <td className="col-num">
         <span>{indice + 1}</span>
       </td>
 
-      {/* Cantidad (metros) */}
+      {/* 2. Artículo — INPUT de texto libre */}
+      <td>
+        <input
+          id={`fila-articulo-${fila.localId}`}
+          type="text"
+          className="tabla-input"
+          placeholder="Ej: Tela cruda, Avío, etc."
+          value={fila.articuloNombre}
+          onChange={(e) => onChange(fila.localId, 'articuloNombre', e.target.value)}
+          aria-label={`Artículo fila ${indice + 1}`}
+          autoComplete="off"
+        />
+      </td>
+
+      {/* 3. Color solicitado — INPUT de texto libre */}
+      <td>
+        <input
+          id={`fila-color-${fila.localId}`}
+          type="text"
+          className="tabla-input"
+          placeholder="Ej: Navy Blue"
+          value={fila.colorSolicitado}
+          onChange={(e) => onChange(fila.localId, 'colorSolicitado', e.target.value)}
+          aria-label={`Color solicitado fila ${indice + 1}`}
+          autoComplete="off"
+        />
+      </td>
+
+      {/* 4. Cantidad (metros) — INPUT numérico */}
       <td>
         <input
           id={`fila-cantidad-${fila.localId}`}
@@ -55,51 +80,7 @@ const FilaDetalleComponent: React.FC<FilaDetalleProps> = ({
         />
       </td>
 
-      {/* Unidad de Medida — FIJA: Metros */}
-      <td>
-        <input
-          type="text"
-          className="tabla-input"
-          value="Metros"
-          readOnly
-          tabIndex={-1}
-          aria-label="Unidad de medida fija"
-        />
-      </td>
-
-      {/* Artículo — SELECT desde catálogo */}
-      <td>
-        <select
-          id={`fila-articulo-${fila.localId}`}
-          className="tabla-input"
-          value={fila.articuloId}
-          onChange={(e) => onChange(fila.localId, 'articuloId', e.target.value)}
-          aria-label={`Artículo fila ${indice + 1}`}
-          style={{ cursor: 'pointer' }}
-        >
-          <option value="">— Artículo —</option>
-          {articulos.map((a) => (
-            <option key={a.id} value={String(a.id)}>
-              {a.nombre}
-            </option>
-          ))}
-        </select>
-      </td>
-
-      {/* Color solicitado */}
-      <td>
-        <input
-          id={`fila-color-${fila.localId}`}
-          type="text"
-          className="tabla-input"
-          placeholder="Ej: Navy Blue"
-          value={fila.colorSolicitado}
-          onChange={(e) => onChange(fila.localId, 'colorSolicitado', e.target.value)}
-          aria-label={`Color solicitado fila ${indice + 1}`}
-        />
-      </td>
-
-      {/* Precio por metro */}
+      {/* 5. Precio por metro — INPUT numérico decimal */}
       <td>
         <input
           id={`fila-precio-${fila.localId}`}
@@ -114,14 +95,14 @@ const FilaDetalleComponent: React.FC<FilaDetalleProps> = ({
         />
       </td>
 
-      {/* Total fila — calculado en tiempo real (solo lectura) */}
-      <td>
-        <span className={`total-fila ${!total ? 'empty' : ''}`}>
+      {/* 6. Total fila — calculado en tiempo real (solo lectura) */}
+      <td style={{ textAlign: 'right' }}>
+        <span className={`total-fila ${!total ? 'empty' : ''}`} style={{ fontWeight: 600 }}>
           {total ? `S/ ${total}` : '—'}
         </span>
       </td>
 
-      {/* Botón eliminar fila */}
+      {/* 7. Botón eliminar fila */}
       <td>
         <button
           id={`btn-eliminar-fila-${fila.localId}`}

@@ -37,6 +37,7 @@ async function main() {
       { codigo: 'PENDIENTE',  etiqueta: 'Pendiente',   descripcion: 'Registrada, sin iniciar producción',          esEstadoFinal: false },
       { codigo: 'EN_PROCESO', etiqueta: 'En Proceso',  descripcion: 'Al menos un lote está en formulario técnico', esEstadoFinal: false },
       { codigo: 'COMPLETADA', etiqueta: 'Completada',  descripcion: 'Todos los lotes han sido procesados',         esEstadoFinal: true  },
+      { codigo: 'ENTREGADA',  etiqueta: 'Entregada',   descripcion: 'Orden de compra entregada al cliente',        esEstadoFinal: true  },
       { codigo: 'ANULADA',    etiqueta: 'Anulada',     descripcion: 'Cancelada por el cliente o el taller',        esEstadoFinal: true  },
     ],
     skipDuplicates: true,
@@ -92,42 +93,48 @@ async function main() {
   // ──────────────────────────────────────────────────────────────────────────
   // CATÁLOGO 6 — colorantes_catalogo
   // ──────────────────────────────────────────────────────────────────────────
-  await prisma.coloranteCatalogo.createMany({
-    data: [
-      // Reactivos para Algodón
-      { nombre: 'Ramazol Yellow' },
-      { nombre: 'Ramazol Red' },
-      { nombre: 'Ramazol Blue' },
-      { nombre: 'Ramazol Turquoise' },
-      { nombre: 'Ramazol Black B' },
-      { nombre: 'Reactivo Rojo 3BS' },
-      { nombre: 'Reactivo Amarillo K-3R' },
-      { nombre: 'Reactivo Negro B' },
-      { nombre: 'Reactivo Azul BRF' },
-      { nombre: 'Reactivo Naranja 16' },
-      // Ácidos para Nylon
-      { nombre: 'Lanasol Yellow 4G' },
-      { nombre: 'Lanasol Red 6G' },
-      { nombre: 'Lanasol Blue 3R' },
-      { nombre: 'Erionyl Amarillo A-3GL' },
-      { nombre: 'Erionyl Rojo A-3BN' },
-      { nombre: 'Erionyl Azul A-R' },
-      { nombre: 'Ácido Amarillo G' },
-      { nombre: 'Ácido Rojo B' },
-      { nombre: 'Ácido Azul 45' },
-      // Dispersos para Poliéster
-      { nombre: 'Dianix Blue AC-E' },
-      { nombre: 'Dianix Red AC-E' },
-      { nombre: 'Dianix Yellow AC-E' },
-      { nombre: 'Disperso Rojo 60' },
-      { nombre: 'Disperso Azul 56' },
-      { nombre: 'Disperso Amarillo 64' },
-      { nombre: 'Disperso Negro 1' },
-      { nombre: 'Disperso Naranja 25' },
-    ],
-    skipDuplicates: true,
-  });
-  console.log('  ✅ colorantes_catalogo');
+  // --- Colorantes con su tipo de fibra compatible ---
+  const colorantesData = [
+    // Reactivos para Algodón
+    { nombre: 'Ramazol Yellow', tipoColorante: 'REACTIVO' },
+    { nombre: 'Ramazol Red', tipoColorante: 'REACTIVO' },
+    { nombre: 'Ramazol Blue', tipoColorante: 'REACTIVO' },
+    { nombre: 'Ramazol Turquoise', tipoColorante: 'REACTIVO' },
+    { nombre: 'Ramazol Black B', tipoColorante: 'REACTIVO' },
+    { nombre: 'Reactivo Rojo 3BS', tipoColorante: 'REACTIVO' },
+    { nombre: 'Reactivo Amarillo K-3R', tipoColorante: 'REACTIVO' },
+    { nombre: 'Reactivo Negro B', tipoColorante: 'REACTIVO' },
+    { nombre: 'Reactivo Azul BRF', tipoColorante: 'REACTIVO' },
+    { nombre: 'Reactivo Naranja 16', tipoColorante: 'REACTIVO' },
+    // Ácidos para Nylon
+    { nombre: 'Lanasol Yellow 4G', tipoColorante: 'ACIDO' },
+    { nombre: 'Lanasol Red 6G', tipoColorante: 'ACIDO' },
+    { nombre: 'Lanasol Blue 3R', tipoColorante: 'ACIDO' },
+    { nombre: 'Erionyl Amarillo A-3GL', tipoColorante: 'ACIDO' },
+    { nombre: 'Erionyl Rojo A-3BN', tipoColorante: 'ACIDO' },
+    { nombre: 'Erionyl Azul A-R', tipoColorante: 'ACIDO' },
+    { nombre: 'Ácido Amarillo G', tipoColorante: 'ACIDO' },
+    { nombre: 'Ácido Rojo B', tipoColorante: 'ACIDO' },
+    { nombre: 'Ácido Azul 45', tipoColorante: 'ACIDO' },
+    // Dispersos para Poliéster
+    { nombre: 'Dianix Blue AC-E', tipoColorante: 'DISPERSO' },
+    { nombre: 'Dianix Red AC-E', tipoColorante: 'DISPERSO' },
+    { nombre: 'Dianix Yellow AC-E', tipoColorante: 'DISPERSO' },
+    { nombre: 'Disperso Rojo 60', tipoColorante: 'DISPERSO' },
+    { nombre: 'Disperso Azul 56', tipoColorante: 'DISPERSO' },
+    { nombre: 'Disperso Amarillo 64', tipoColorante: 'DISPERSO' },
+    { nombre: 'Disperso Negro 1', tipoColorante: 'DISPERSO' },
+    { nombre: 'Disperso Naranja 25', tipoColorante: 'DISPERSO' },
+  ];
+
+  for (const c of colorantesData) {
+    await prisma.coloranteCatalogo.upsert({
+      where: { nombre: c.nombre },
+      update: { tipoColorante: c.tipoColorante },
+      create: { nombre: c.nombre, tipoColorante: c.tipoColorante },
+    });
+  }
+  console.log('  ✅ colorantes_catalogo (con tipoColorante)');
 
   // ──────────────────────────────────────────────────────────────────────────
   // CATÁLOGO 7 — tipos_incidencia

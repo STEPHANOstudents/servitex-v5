@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import ordenesRouter   from './routes/ordenes.routes';
 import recetasRouter   from './routes/recetas.routes';
 import catalogosRouter from './routes/catalogos.routes';
+import clientesRouter  from './routes/clientes.routes';
+import colorRouter     from './routes/color.routes';
 
 
 dotenv.config();
@@ -62,9 +64,19 @@ app.use('/api/ordenes',    ordenesRouter);
 app.use('/api/recetas',    recetasRouter);
 
 // ---------------------------------------------------------------------------
+// Rutas de la API — Módulo 2.5: Análisis de Color (sharp)
+// ---------------------------------------------------------------------------
+app.use('/api/color',      colorRouter);
+
+// ---------------------------------------------------------------------------
 // Rutas de la API — Catálogos (valores válidos para formularios)
 // ---------------------------------------------------------------------------
 app.use('/api/catalogos',  catalogosRouter);
+
+// ---------------------------------------------------------------------------
+// Rutas de la API — Clientes (módulo comercial)
+// ---------------------------------------------------------------------------
+app.use('/api/clientes',   clientesRouter);
 
 // ---------------------------------------------------------------------------
 // Manejador 404 — Ruta no encontrada

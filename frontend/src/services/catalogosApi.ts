@@ -41,6 +41,7 @@ export interface UnidadMedida {
 export interface ColoranteCatalogo {
   id: number;
   nombre: string;
+  tipoColorante: 'REACTIVO' | 'ACIDO' | 'DISPERSO';
 }
 
 export interface Catalogos {

@@ -53,7 +53,7 @@ export type EstadoOrdenCodigo =
 export interface FilaDetalle {
   localId: string;          // Solo para React key — no se envía al backend
   cantidad: string;         // String para el input (se convierte a Float al enviar)
-  articuloId: string;       // String del id (select) — se convierte a number al enviar
+  articuloNombre: string;   // Nombre del artículo (texto libre)
   colorSolicitado: string;
   precioPorMetro: string;   // String para el input
 }
@@ -63,7 +63,7 @@ export interface FilaDetalle {
 // ---------------------------------------------------------------------------
 export interface DetalleOrdenInput {
   cantidad: number;
-  articuloId: number;
+  articuloNombre: string;
   colorSolicitado: string;
   precioPorMetro: number;
 }
@@ -101,6 +101,10 @@ export interface DetalleOrdenDB {
   total: number;
   createdAt: string;
   updatedAt: string;
+  recetaTecnica?: {
+    id: number;
+    estado: string;
+  } | null;
 }
 
 export interface OrdenCompraDB {

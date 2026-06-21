@@ -72,8 +72,8 @@ export async function crearReceta(req: Request, res: Response): Promise<void> {
 // ---------------------------------------------------------------------------
 export async function obtenerRecetas(req: Request, res: Response): Promise<void> {
   try {
-    void req;
-    const recetas = await recetasService.obtenerRecetas();
+    const estado = req.query.estado ? String(req.query.estado) : undefined;
+    const recetas = await recetasService.obtenerRecetas(estado);
     successResponse(res, 200, `${recetas.length} receta(s) obtenida(s).`, recetas);
   } catch (error: unknown) {
     console.error('[obtenerRecetas] Error inesperado:', error);
@@ -106,5 +106,78 @@ export async function obtenerRecetaPorId(req: Request, res: Response): Promise<v
   } catch (error: unknown) {
     console.error('[obtenerRecetaPorId] Error inesperado:', error);
     errorResponse(res, 500, 'Error interno del servidor.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/recetas/:id/iteracion
+// Registra una nueva iteración (ajuste) en una receta existente
+// ---------------------------------------------------------------------------
+export async function registrarIteracion(req: Request, res: Response): Promise<void> {
+  try {
+    const rawId = String(req.params['id'] ?? '');
+    const id = parseInt(rawId, 10);
+
+    if (isNaN(id) || id <= 0) {
+      errorResponse(res, 400, 'El ID de la receta debe ser un entero positivo.');
+      return;
+    }
+
+    const { colorantes, observaciones } = req.body;
+    if (!Array.isArray(colorantes)) {
+      errorResponse(res, 400, 'Los colorantes deben ser una lista válida.');
+      return;
+    }
+
+    const resultado = await recetasService.registrarIteracion(id, { colorantes, observaciones });
+    successResponse(res, 200, 'Iteración registrada exitosamente.', resultado);
+  } catch (error: unknown) {
+    console.error('[registrarIteracion] Error:', error);
+    errorResponse(res, 500, error instanceof Error ? error.message : 'Error interno al registrar la iteración.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/recetas/:id/aprobar
+// Cambia el estado de una receta a APROBADO
+// ---------------------------------------------------------------------------
+export async function aprobarReceta(req: Request, res: Response): Promise<void> {
+  try {
+    const rawId = String(req.params['id'] ?? '');
+    const id = parseInt(rawId, 10);
+
+    if (isNaN(id) || id <= 0) {
+      errorResponse(res, 400, 'El ID de la receta debe ser un entero positivo.');
+      return;
+    }
+
+    const resultado = await recetasService.aprobarReceta(id);
+    successResponse(res, 200, 'Receta aprobada exitosamente.', resultado);
+  } catch (error: unknown) {
+    console.error('[aprobarReceta] Error:', error);
+    errorResponse(res, 500, error instanceof Error ? error.message : 'Error interno al aprobar la receta.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PATCH /api/recetas/:id/color
+// Guarda colorHex, colorRgb y colorMiniatura en la receta correspondiente
+// ---------------------------------------------------------------------------
+export async function guardarColor(req: Request, res: Response): Promise<void> {
+  try {
+    const rawId = String(req.params['id'] ?? '');
+    const id = parseInt(rawId, 10);
+
+    if (isNaN(id) || id <= 0) {
+      errorResponse(res, 400, 'El ID de la receta debe ser un entero positivo.');
+      return;
+    }
+
+    const { colorHex, colorRgb, colorMiniatura } = req.body;
+    const resultado = await recetasService.guardarColor(id, { colorHex, colorRgb, colorMiniatura });
+    successResponse(res, 200, 'Color guardado en la receta exitosamente.', resultado);
+  } catch (error: unknown) {
+    console.error('[guardarColor] Error:', error);
+    errorResponse(res, 500, error instanceof Error ? error.message : 'Error interno al guardar el color.');
   }
 }

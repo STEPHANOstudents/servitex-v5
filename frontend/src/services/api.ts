@@ -9,6 +9,8 @@ import type {
   OrdenResponse,
   OrdenesPaginadas,
   EstadoOrdenCodigo,
+  ClienteDB,
+  OrdenCompraDB,
 } from '../types/ordenes';
 
 const BASE_URL = import.meta.env.VITE_API_URL
@@ -68,11 +70,36 @@ export async function obtenerOrdenPorId(id: number): Promise<OrdenResponse> {
 export async function actualizarEstadoOrden(
   id: number,
   estadoCodigo: EstadoOrdenCodigo | string,
-): Promise<OrdenResponse> {
+): Promise<OrdenCompraDB> {
   const res = await fetch(`${BASE_URL}/ordenes/${id}/estado`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ estadoCodigo }),
   });
-  return handleResponse<OrdenResponse>(res);
+  return handleResponse<OrdenCompraDB>(res);
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/clientes — Obtener todos los clientes
+// ---------------------------------------------------------------------------
+export async function fetchClientes(): Promise<ClienteDB[]> {
+  const res = await fetch(`${BASE_URL}/clientes`);
+  return handleResponse<ClienteDB[]>(res);
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/clientes — Registrar un nuevo cliente
+// ---------------------------------------------------------------------------
+export async function crearCliente(
+  nombre: string,
+  tipoClienteCodigo: string,
+  ruc?: string,
+  telefono?: string
+): Promise<ClienteDB> {
+  const res = await fetch(`${BASE_URL}/clientes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nombre, tipoClienteCodigo, ruc, telefono }),
+  });
+  return handleResponse<ClienteDB>(res);
 }

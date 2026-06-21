@@ -39,6 +39,7 @@ const INCLUDE_ORDEN_COMPLETA = {
     include: {
       articulo: true,
       unidadMedida: true,
+      recetaTecnica: true,
     },
   },
 } satisfies Prisma.OrdenCompraInclude;
@@ -83,23 +84,46 @@ export const ordenesService = {
         },
       });
 
-      // Paso 3 + 4: Calcular totales y crear detalles
-      const detallesData = datos.detalles.map((detalle) => {
+      // Paso 3 + 4: Resolver o crear artículos dinámicamente y mapear detalles
+      const detallesData = [];
+      for (const detalle of datos.detalles) {
         const cantidad      = detalle.cantidad;
         const precioPorMetro = detalle.precioPorMetro;
         const totalCalculado = Math.round(cantidad * precioPorMetro * 100) / 100;
         const unidadId = detalle.unidadMedidaId ?? metrosId;
 
-        return {
+        const nombreArticulo = detalle.articuloNombre.trim();
+
+        // Buscar artículo existente (insensible a mayúsculas/minúsculas)
+        let articulo = await tx.articuloTextil.findFirst({
+          where: {
+            nombre: {
+              equals: nombreArticulo,
+              mode: 'insensitive',
+            },
+          },
+        });
+
+        // Crear si no existe
+        if (!articulo) {
+          articulo = await tx.articuloTextil.create({
+            data: {
+              nombre: nombreArticulo,
+              descripcion: 'Artículo creado dinámicamente desde Órdenes de Compra.',
+            },
+          });
+        }
+
+        detallesData.push({
           ordenCompraId:  ordenCabecera.id,
-          articuloId:     detalle.articuloId,
+          articuloId:     articulo.id,
           unidadMedidaId: unidadId,
           cantidad,
           colorSolicitado: detalle.colorSolicitado.trim(),
           precioPorMetro,
           total: totalCalculado,
-        };
-      });
+        });
+      }
 
       await tx.detalleOrden.createMany({ data: detallesData });
 
