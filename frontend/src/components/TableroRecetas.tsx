@@ -3,9 +3,39 @@
 // Regla: Mini Cartas muestran SOLO: Nombre del Color (negrita), Fecha,
 //        Composición del artículo (fibra). Nada más.
 // =============================================================================
-import React, { useState } from 'react';
-import type { RecetaListItem } from '../types/recetas';
+import React, { useState, useEffect } from 'react';
+import type { RecetaListItem, RecetaPreload } from '../types/recetas';
 import { getFibraClase, getFibraLabel, getNivelClase } from '../types/recetas';
+import { fetchCatalogos } from '../services/catalogosApi';
+import type { Catalogos } from '../services/catalogosApi';
+
+function getColoranteTipo(
+  coloranteId: number,
+  nombreColorante: string,
+  catalogos: Catalogos | null
+): 'REACTIVO' | 'ACIDO' | 'DISPERSO' {
+  if (catalogos?.colorantesCatalogo) {
+    const found = catalogos.colorantesCatalogo.find(c => c.id === coloranteId);
+    if (found) return found.tipoColorante;
+  }
+  const name = nombreColorante.toLowerCase();
+  if (name.includes('ramazol') || name.includes('reactive') || name.includes('reactivo') || name.includes('black b') || name.includes('yellow') || name.includes('blue') || name.includes('red')) {
+    if (name.includes('ácido') || name.includes('acido') || name.includes('acid') || name.includes('nylon')) {
+      return 'ACIDO';
+    }
+    if (name.includes('dispers') || name.includes('dianix') || name.includes('poliéster') || name.includes('poliester')) {
+      return 'DISPERSO';
+    }
+    return 'REACTIVO';
+  }
+  if (name.includes('ácido') || name.includes('acido') || name.includes('acid') || name.includes('nylon') || name.includes('lanasol') || name.includes('erionyl')) {
+    return 'ACIDO';
+  }
+  if (name.includes('dispers') || name.includes('dianix') || name.includes('poliéster') || name.includes('poliester')) {
+    return 'DISPERSO';
+  }
+  return 'REACTIVO';
+}
 
 const POR_PAGINA = 12;
 
@@ -19,18 +49,30 @@ interface TableroRecetasProps {
   recetas: RecetaListItem[];
   onSeleccionar: (id: number) => void;
   onNuevaReceta: () => void;
+  onCopiarBase: (preload: RecetaPreload) => void;
 }
 
 const TableroRecetas: React.FC<TableroRecetasProps> = ({
-  recetas, onSeleccionar, onNuevaReceta,
+  recetas, onSeleccionar, onNuevaReceta, onCopiarBase,
 }) => {
   const [filtroFibra, setFiltroFibra] = useState<'TODOS' | 'ALGODON' | 'NYLON' | 'POLIESTER' | 'MULTIFIBRA'>('TODOS');
   const [pagina, setPagina] = useState(1);
   const [busqueda, setBusqueda] = useState('');
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
+
+  useEffect(() => {
+    fetchCatalogos().then(setCatalogos).catch(err => console.error("Error cargando catálogos en tablero:", err));
+  }, []);
 
   const seleccionarFiltro = (f: 'TODOS' | 'ALGODON' | 'NYLON' | 'POLIESTER' | 'MULTIFIBRA') => {
     setFiltroFibra(f);
     setPagina(1);
+    setExpandedId(null);
+  };
+
+  const handleToggleExpand = (id: number) => {
+    setExpandedId(prev => prev === id ? null : id);
   };
 
   const recetasFiltradas = recetas.filter(r => {
@@ -59,7 +101,7 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
 
   return (
     <div>
-      {/* Estilos locales para el cursor y el estado activo */}
+      {/* Estilos locales para el cursor, el estado activo y las animaciones de expansión */}
       <style>{`
         .stat-chip-btn {
           background: var(--bg-card);
@@ -86,6 +128,21 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
         .stat-chip-btn.active .stat-chip-value {
           color: var(--accent-purple) !important;
         }
+        
+        .carta-expanded-content {
+          max-height: 0;
+          opacity: 0;
+          overflow: hidden;
+          transition: max-height 0.2s ease-out, opacity 0.2s ease-out;
+        }
+        .carta-expanded-content.expanded {
+          max-height: 350px;
+          opacity: 1;
+        }
+        
+        .mini-carta-receta {
+          transition: border-color var(--transition-slow), transform var(--transition-slow), box-shadow var(--transition-slow), background var(--transition-slow), padding var(--transition-slow);
+        }
       `}</style>
 
       {/* Header */}
@@ -93,7 +150,7 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
         <div>
           <h1 className="page-title">Lab <span>Histórico</span></h1>
           <p className="page-subtitle">
-            {recetas.length} receta(s) registradas · Haz clic en una carta para ver el desglose químico
+            {recetas.length} receta(s) registradas · Haz clic en una carta para ver sus colorantes y opciones
           </p>
         </div>
         <button id="btn-nueva-receta" type="button" className="btn btn-primary" onClick={onNuevaReceta}>
@@ -123,6 +180,7 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
           onChange={(e) => {
             setBusqueda(e.target.value);
             setPagina(1);
+            setExpandedId(null);
           }}
           style={{
             width: '100%',
@@ -228,20 +286,28 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
         <>
           <div className="grid-cartas-receta">
             {slice.map(r => (
-              <MiniCartaReceta key={r.id} receta={r} onSeleccionar={onSeleccionar} />
+              <MiniCartaReceta
+                key={r.id}
+                receta={r}
+                isExpanded={expandedId === r.id}
+                onToggle={() => handleToggleExpand(r.id)}
+                onVerDetalles={onSeleccionar}
+                onCopiarBase={onCopiarBase}
+                catalogos={catalogos}
+              />
             ))}
           </div>
 
           {/* Paginación */}
           {totalPaginas > 1 && (
             <div className="paginacion">
-              <button className="pag-btn" disabled={pagina === 1} onClick={() => setPagina(p => p - 1)}>‹</button>
+              <button className="pag-btn" disabled={pagina === 1} onClick={() => { setPagina(p => p - 1); setExpandedId(null); }}>‹</button>
               {Array.from({ length: totalPaginas }, (_, i) => i + 1).map(p => (
-                <button key={p} className={`pag-btn ${p === pagina ? 'active' : ''}`} onClick={() => setPagina(p)}>
+                <button key={p} className={`pag-btn ${p === pagina ? 'active' : ''}`} onClick={() => { setPagina(p); setExpandedId(null); }}>
                   {p}
                 </button>
               ))}
-              <button className="pag-btn" disabled={pagina === totalPaginas} onClick={() => setPagina(p => p + 1)}>›</button>
+              <button className="pag-btn" disabled={pagina === totalPaginas} onClick={() => { setPagina(p => p + 1); setExpandedId(null); }}>›</button>
             </div>
           )}
         </>
@@ -252,25 +318,35 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
 
 // =============================================================================
 // SUB-COMPONENTE: MiniCartaReceta
-// Regla estricta: SOLO muestra Nombre del Color (negrita), Fecha y Composición.
+// Regla: Expansión inline. Muestra barra, círculo, badges, fecha y collapse/expand.
 // =============================================================================
 interface MiniCartaRecetaProps {
   receta: RecetaListItem;
-  onSeleccionar: (id: number) => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onVerDetalles: (id: number) => void;
+  onCopiarBase: (preload: RecetaPreload) => void;
+  catalogos: Catalogos | null;
 }
 
-const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({ receta, onSeleccionar }) => {
+const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
+  receta, isExpanded, onToggle, onVerDetalles, onCopiarBase, catalogos,
+}) => {
   const fibraClase = getFibraClase(receta.composicionFibra);
   const nivelClase = getNivelClase(receta.nivelIntensidad);
 
   return (
     <div
       id={`carta-receta-${receta.id}`}
-      className="mini-carta-receta"
-      onClick={() => onSeleccionar(receta.id)}
+      className={`mini-carta-receta ${isExpanded ? 'expanded' : ''}`}
+      onClick={onToggle}
       role="button" tabIndex={0}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onSeleccionar(receta.id); }}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') onToggle(); }}
       aria-label={`Ver desglose de ${receta.descripcionColor}`}
+      style={{
+        paddingBottom: isExpanded ? '20px' : '36px',
+        position: 'relative',
+      }}
     >
       {/* Barra superior de color */}
       <div
@@ -331,6 +407,157 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({ receta, onSeleccionar
         <span className={`carta-nivel-chip intensidad-chip ${nivelClase}`} style={{ fontSize:'9px', padding:'2px 7px' }}>
           N{receta.nivelIntensidad}
         </span>
+      </div>
+
+      {/* ── CONTENIDO EXPANDIDO INLINE ── */}
+      <div className={`carta-expanded-content ${isExpanded ? 'expanded' : ''}`}>
+        <hr style={{ border: 0, borderTop: '1px solid var(--border-subtle)', margin: '12px 0' }} />
+        
+        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+          <strong style={{ display: 'block', marginBottom: '6px', color: 'var(--text-primary)' }}>Colorantes:</strong>
+          {!receta.composicionFibra.startsWith('MULTIFIBRA') ? (
+            <ul style={{ listStyle: 'none', paddingLeft: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {receta.colorantes.map((c, i) => {
+                return (
+                  <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)' }}>
+                    · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {(() => {
+                const reactivos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'REACTIVO');
+                const acidos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'ACIDO');
+                const dispersos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'DISPERSO');
+
+                return (
+                  <>
+                    {reactivos.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>[ Algodón ]</div>
+                        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {reactivos.map((c, i) => {
+                            return (
+                              <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)', paddingLeft: '6px' }}>
+                                · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {acidos.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>[ Nylon ]</div>
+                        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {acidos.map((c, i) => {
+                            return (
+                              <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)', paddingLeft: '6px' }}>
+                                · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {dispersos.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>[ Poliéster ]</div>
+                        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {dispersos.map((c, i) => {
+                            return (
+                              <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)', paddingLeft: '6px' }}>
+                                · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+          <button
+            type="button"
+            className="btn"
+            style={{
+              flex: 1,
+              border: '1px solid var(--border-medium)',
+              backgroundColor: '#ffffff',
+              color: 'var(--text-primary)',
+              fontSize: '12px',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onVerDetalles(receta.id);
+            }}
+          >
+            Ver detalles
+          </button>
+          
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{
+              flex: 1,
+              backgroundColor: 'var(--accent-teal)',
+              color: '#ffffff',
+              border: 'none',
+              fontSize: '12px',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              const preload: RecetaPreload = {
+                pesoRealKg:            String(receta.pesoRealKg),
+                articulo:              receta.articulo,
+                articuloId:            receta.articuloId,
+                composicionFibra:      receta.composicionFibra,
+                relacionBano:          String(receta.relacionBano),
+                descripcionColor:      receta.descripcionColor,
+                observacionesTecnicas: receta.observacionesTecnicas ?? '',
+                colorantes: receta.colorantes.map(col => ({
+                  nombre:      col.nombreColorante,
+                  coloranteId: col.coloranteId,
+                  porcentaje:  String(col.porcentaje),
+                })),
+              };
+              onCopiarBase(preload);
+            }}
+          >
+            Duplicar
+          </button>
+        </div>
+      </div>
+
+      {/* Flecha indicadora en la parte inferior */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: '4px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: '10px',
+          color: 'var(--text-muted)',
+          pointerEvents: 'none',
+          transition: 'transform 0.2s ease',
+        }}
+      >
+        {isExpanded ? '∧' : '∨'}
       </div>
     </div>
   );

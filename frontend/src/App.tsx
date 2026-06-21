@@ -333,6 +333,7 @@ const App: React.FC = () => {
                 setRecetaAjuste(null);
                 setVista('lab-formulario');
               }}
+              onCopiarBase={handleCopiarBase}
             />
           )
         )}

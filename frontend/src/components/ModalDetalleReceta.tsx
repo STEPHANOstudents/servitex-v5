@@ -5,8 +5,38 @@
 // =============================================================================
 import React, { useEffect, useState, useRef } from 'react';
 import type { RecetaConMotor, BanoQuimico, RecetaPreload } from '../types/recetas';
-import { getFibraLabel, getNivelClase } from '../types/recetas';
+import { getFibraLabel, getNivelClase, formatearGramos } from '../types/recetas';
 import { analizarColor, guardarColor } from '../services/recetasApi';
+import { fetchCatalogos } from '../services/catalogosApi';
+import type { Catalogos } from '../services/catalogosApi';
+
+function getColoranteTipo(
+  coloranteId: number,
+  nombreColorante: string,
+  catalogos: Catalogos | null
+): 'REACTIVO' | 'ACIDO' | 'DISPERSO' {
+  if (catalogos?.colorantesCatalogo) {
+    const found = catalogos.colorantesCatalogo.find(c => c.id === coloranteId);
+    if (found) return found.tipoColorante;
+  }
+  const name = nombreColorante.toLowerCase();
+  if (name.includes('ramazol') || name.includes('reactive') || name.includes('reactivo') || name.includes('black b') || name.includes('yellow') || name.includes('blue') || name.includes('red')) {
+    if (name.includes('ácido') || name.includes('acido') || name.includes('acid') || name.includes('nylon')) {
+      return 'ACIDO';
+    }
+    if (name.includes('dispers') || name.includes('dianix') || name.includes('poliéster') || name.includes('poliester')) {
+      return 'DISPERSO';
+    }
+    return 'REACTIVO';
+  }
+  if (name.includes('ácido') || name.includes('acido') || name.includes('acid') || name.includes('nylon') || name.includes('lanasol') || name.includes('erionyl')) {
+    return 'ACIDO';
+  }
+  if (name.includes('dispers') || name.includes('dianix') || name.includes('poliéster') || name.includes('poliester')) {
+    return 'DISPERSO';
+  }
+  return 'REACTIVO';
+}
 
 interface ModalDetalleRecetaProps {
   data: RecetaConMotor;
@@ -39,6 +69,11 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
   const { receta, motorQuimico } = data;
 
   const [activeTab, setActiveTab] = useState<'procedimiento' | 'color'>('procedimiento');
+  const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
+
+  useEffect(() => {
+    fetchCatalogos().then(setCatalogos).catch(err => console.error("Error al cargar catálogos en modal:", err));
+  }, []);
 
   // Camera/Image selection state
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -367,12 +402,97 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
               </div>
 
               <div className="formula-lista">
-                {receta.colorantes.map((c, i) => (
-                  <div className="formula-item" key={i}>
-                    <span className="formula-colorante-nombre">{c.nombreColorante}</span>
-                    <span className="formula-porcentaje">{c.porcentaje.toFixed(4)}%</span>
-                  </div>
-                ))}
+                {!receta.composicionFibra.startsWith('MULTIFIBRA') ? (
+                  receta.colorantes.map((c, i) => {
+                    const gramos = receta.pesoRealKg * 1000 * (c.porcentaje / 100);
+                    return (
+                      <div className="formula-item" key={i}>
+                        <span className="formula-colorante-nombre">{c.nombreColorante}</span>
+                        <span className="formula-porcentaje">
+                          {c.porcentaje.toFixed(4)}%{' '}
+                          <span style={{ color: 'var(--accent-teal)', fontWeight: 500, marginLeft: '6px' }}>
+                            ({formatearGramos(gramos)})
+                          </span>
+                        </span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <>
+                    {(() => {
+                      const reactivos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'REACTIVO');
+                      const acidos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'ACIDO');
+                      const dispersos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'DISPERSO');
+                      return (
+                        <>
+                          {reactivos.length > 0 && (
+                            <div style={{ marginTop: '8px' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px', marginBottom: '8px', marginTop: '12px' }}>
+                                ── Colorantes para Algodón (Reactivos) ──
+                              </div>
+                              {reactivos.map((c, i) => {
+                                const gramos = receta.pesoRealKg * 1000 * (c.porcentaje / 100);
+                                return (
+                                  <div className="formula-item" key={i} style={{ paddingLeft: '8px' }}>
+                                    <span className="formula-colorante-nombre">{c.nombreColorante}</span>
+                                    <span className="formula-porcentaje">
+                                      {c.porcentaje.toFixed(4)}%{' '}
+                                      <span style={{ color: 'var(--accent-teal)', fontWeight: 500, marginLeft: '6px' }}>
+                                        ({formatearGramos(gramos)})
+                                      </span>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {acidos.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px', marginBottom: '8px', marginTop: '12px' }}>
+                                ── Colorantes para Nylon (Ácidos) ──
+                              </div>
+                              {acidos.map((c, i) => {
+                                const gramos = receta.pesoRealKg * 1000 * (c.porcentaje / 100);
+                                return (
+                                  <div className="formula-item" key={i} style={{ paddingLeft: '8px' }}>
+                                    <span className="formula-colorante-nombre">{c.nombreColorante}</span>
+                                    <span className="formula-porcentaje">
+                                      {c.porcentaje.toFixed(4)}%{' '}
+                                      <span style={{ color: 'var(--accent-teal)', fontWeight: 500, marginLeft: '6px' }}>
+                                        ({formatearGramos(gramos)})
+                                      </span>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {dispersos.length > 0 && (
+                            <div style={{ marginTop: '12px' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '4px', marginBottom: '8px', marginTop: '12px' }}>
+                                ── Colorantes para Poliéster (Dispersos) ──
+                              </div>
+                              {dispersos.map((c, i) => {
+                                const gramos = receta.pesoRealKg * 1000 * (c.porcentaje / 100);
+                                return (
+                                  <div className="formula-item" key={i} style={{ paddingLeft: '8px' }}>
+                                    <span className="formula-colorante-nombre">{c.nombreColorante}</span>
+                                    <span className="formula-porcentaje">
+                                      {c.porcentaje.toFixed(4)}%{' '}
+                                      <span style={{ color: 'var(--accent-teal)', fontWeight: 500, marginLeft: '6px' }}>
+                                        ({formatearGramos(gramos)})
+                                      </span>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </>
+                )}
               </div>
               {receta.observacionesTecnicas && (
                 <div className="bano-nota" style={{ marginTop: '12px' }}>
@@ -385,28 +505,182 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
             {iteraciones.length > 0 && (
               <div className="modal-seccion">
                 <div className="modal-seccion-titulo">⏳ Trazabilidad de Ajustes e Iteraciones</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
                   {iteraciones.map((it: any, idx: number) => {
                     const esUltimo = idx === iteraciones.length - 1;
                     return (
-                      <div key={idx} style={{ borderLeft: '2px solid var(--accent-purple)', paddingLeft: '12px', paddingBottom: '6px', position: 'relative' }}>
-                        <div style={{ position: 'absolute', left: '-6px', top: '3px', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-purple)' }} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold' }}>
-                          <span>
-                            Iteración #{it.iteracion} {esUltimo ? '✅ (Fórmula Final)' : ''}
-                          </span>
-                          <span style={{ color: 'var(--text-muted)' }}>{new Date(it.fecha).toLocaleDateString('es-PE')}</span>
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          <strong>Motivo/Nota:</strong> {it.observacion}
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-                          {it.colorantes.map((col: any, colIdx: number) => (
-                            <span key={colIdx} style={{ fontSize: '10px', padding: '2px 6px', background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', borderRadius: '4px' }}>
-                              🎨 {col.nombreColorante}: <strong>{col.porcentaje}%</strong> ({col.gramos.toFixed(2)} g)
+                      <div
+                        key={idx}
+                        style={{
+                          backgroundColor: '#F9FAFB',
+                          borderLeft: esUltimo ? '3px solid var(--accent-green)' : '3px solid var(--accent-teal)',
+                          padding: '16px',
+                          borderRadius: '8px',
+                          boxShadow: 'var(--shadow-sm)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '10px',
+                        }}
+                      >
+                        {/* Encabezado: Iteración #N a la izquierda, fecha a la derecha */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '14px' }}>
+                              Iteración #{it.iteracion}
                             </span>
-                          ))}
+                            {esUltimo && (
+                              <span
+                                style={{
+                                  backgroundColor: '#dcfce7',
+                                  color: 'var(--accent-green)',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  padding: '2px 8px',
+                                  borderRadius: '999px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                }}
+                              >
+                                ✅ Fórmula Final
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                            {new Date(it.fecha).toLocaleDateString('es-PE')}
+                          </span>
                         </div>
+
+                        {/* Motivo/Nota en texto gris cursiva */}
+                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                          {it.observacion}
+                        </div>
+
+                        {/* Colorantes como chips con fondo blanco */}
+                        {!receta.composicionFibra.startsWith('MULTIFIBRA') ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '2px' }}>
+                            {it.colorantes.map((col: any, colIdx: number) => (
+                              <div
+                                key={colIdx}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  backgroundColor: '#ffffff',
+                                  border: '1px solid var(--border-subtle)',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  color: 'var(--text-primary)',
+                                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
+                                }}
+                              >
+                                <span style={{ color: 'var(--text-secondary)' }}>🎨 {col.nombreColorante}</span>
+                                <strong style={{ color: 'var(--accent-teal)' }}>{col.porcentaje.toFixed(4)}%</strong>
+                                <span style={{ color: 'var(--accent-teal)', fontSize: '11px' }}>
+                                  ({formatearGramos(col.gramos)})
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '2px', width: '100%' }}>
+                            {(() => {
+                              const itReactivos = it.colorantes.filter((c: any) => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'REACTIVO');
+                              const itAcidos = it.colorantes.filter((c: any) => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'ACIDO');
+                              const itDispersos = it.colorantes.filter((c: any) => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'DISPERSO');
+
+                              return (
+                                <>
+                                  {itReactivos.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '4px' }}>[ Algodón: ]</span>
+                                      {itReactivos.map((col: any, colIdx: number) => (
+                                        <div
+                                          key={colIdx}
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            backgroundColor: '#ffffff',
+                                            border: '1px solid var(--border-subtle)',
+                                            padding: '4px 10px',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            color: 'var(--text-primary)',
+                                            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
+                                          }}
+                                        >
+                                          <span style={{ color: 'var(--text-secondary)' }}>🎨 {col.nombreColorante}</span>
+                                          <strong style={{ color: 'var(--accent-teal)' }}>{col.porcentaje.toFixed(4)}%</strong>
+                                          <span style={{ color: 'var(--accent-teal)', fontSize: '11px' }}>
+                                            ({formatearGramos(col.gramos)})
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {itAcidos.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '4px' }}>[ Nylon: ]</span>
+                                      {itAcidos.map((col: any, colIdx: number) => (
+                                        <div
+                                          key={colIdx}
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            backgroundColor: '#ffffff',
+                                            border: '1px solid var(--border-subtle)',
+                                            padding: '4px 10px',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            color: 'var(--text-primary)',
+                                            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
+                                          }}
+                                        >
+                                          <span style={{ color: 'var(--text-secondary)' }}>🎨 {col.nombreColorante}</span>
+                                          <strong style={{ color: 'var(--accent-teal)' }}>{col.porcentaje.toFixed(4)}%</strong>
+                                          <span style={{ color: 'var(--accent-teal)', fontSize: '11px' }}>
+                                            ({formatearGramos(col.gramos)})
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {itDispersos.length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '4px' }}>[ Poliéster: ]</span>
+                                      {itDispersos.map((col: any, colIdx: number) => (
+                                        <div
+                                          key={colIdx}
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            backgroundColor: '#ffffff',
+                                            border: '1px solid var(--border-subtle)',
+                                            padding: '4px 10px',
+                                            borderRadius: '6px',
+                                            fontSize: '12px',
+                                            color: 'var(--text-primary)',
+                                            boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
+                                          }}
+                                        >
+                                          <span style={{ color: 'var(--text-secondary)' }}>🎨 {col.nombreColorante}</span>
+                                          <strong style={{ color: 'var(--accent-teal)' }}>{col.porcentaje.toFixed(4)}%</strong>
+                                          <span style={{ color: 'var(--accent-teal)', fontSize: '11px' }}>
+                                            ({formatearGramos(col.gramos)})
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -882,7 +1156,7 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
 
         {/* ── FOOTER ── */}
         <div className="modal-footer" style={{ gap: '12px', justifyContent: 'space-between' }}>
-          {activeTab === 'procedimiento' ? (
+          {activeTab === 'procedimiento' && receta.estado === 'APROBADO' ? (
             <button
               id="btn-copiar-base-receta"
               className="btn-copiar-base"

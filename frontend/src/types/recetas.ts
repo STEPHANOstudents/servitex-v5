@@ -210,3 +210,13 @@ export function getFibraLabel(fibra: string): string {
   };
   return map[fibra] ?? fibra;
 }
+
+export function formatearGramos(gramos: number): string {
+  if (gramos < 0.1) {
+    return `${gramos.toFixed(4)} g`;
+  }
+  if (gramos >= 0.1 && gramos < 10) {
+    return `${gramos.toFixed(2)} g`;
+  }
+  return `${gramos.toFixed(1)} g`;
+}

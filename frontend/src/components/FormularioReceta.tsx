@@ -4,7 +4,7 @@
 // =============================================================================
 import React, { useState, useCallback, useEffect } from 'react';
 import type { RecetaConMotor, RecetaPreload } from '../types/recetas';
-import { getNivelClase } from '../types/recetas';
+import { getNivelClase, formatearGramos } from '../types/recetas';
 import { crearReceta, registrarIteracion, aprobarReceta } from '../services/recetasApi';
 import { obtenerOrdenes } from '../services/api';
 import { fetchCatalogos } from '../services/catalogosApi';
@@ -196,6 +196,93 @@ function calculatePreviewBaths(
   return [];
 }
 
+function getColoranteTipo(
+  coloranteId: number,
+  nombreColorante: string,
+  catalogos: Catalogos | null
+): 'REACTIVO' | 'ACIDO' | 'DISPERSO' {
+  if (catalogos?.colorantesCatalogo) {
+    const found = catalogos.colorantesCatalogo.find(c => c.id === coloranteId);
+    if (found) return found.tipoColorante;
+  }
+  const name = nombreColorante.toLowerCase();
+  if (name.includes('ramazol') || name.includes('reactive') || name.includes('reactivo') || name.includes('black b') || name.includes('yellow') || name.includes('blue') || name.includes('red')) {
+    if (name.includes('ácido') || name.includes('acido') || name.includes('acid') || name.includes('nylon')) {
+      return 'ACIDO';
+    }
+    if (name.includes('dispers') || name.includes('dianix') || name.includes('poliéster') || name.includes('poliester')) {
+      return 'DISPERSO';
+    }
+    return 'REACTIVO';
+  }
+  if (name.includes('ácido') || name.includes('acido') || name.includes('acid') || name.includes('nylon') || name.includes('lanasol') || name.includes('erionyl')) {
+    return 'ACIDO';
+  }
+  if (name.includes('dispers') || name.includes('dianix') || name.includes('poliéster') || name.includes('poliester')) {
+    return 'DISPERSO';
+  }
+  return 'REACTIVO';
+}
+
+function renderIterationChips(
+  colorantes: any[],
+  composicionFibraCodigo: string,
+  catalogos: Catalogos | null
+) {
+  const isMultifibra = composicionFibraCodigo.startsWith('MULTIFIBRA');
+
+  if (!isMultifibra) {
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+        {colorantes.map((col: any, cidx: number) => (
+          <span key={cidx} style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', borderRadius: '4px' }}>
+            🎨 {col.nombreColorante}: <strong>{col.porcentaje}%</strong> ({formatearGramos(col.gramos)})
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  const reactivos = colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'REACTIVO');
+  const acidos = colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'ACIDO');
+  const dispersos = colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'DISPERSO');
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px', width: '100%' }}>
+      {reactivos.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '4px' }}>[ Algodón: ]</span>
+          {reactivos.map((col: any, cidx: number) => (
+            <span key={cidx} style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', borderRadius: '4px' }}>
+              🎨 {col.nombreColorante}: <strong>{col.porcentaje}%</strong> ({formatearGramos(col.gramos)})
+            </span>
+          ))}
+        </div>
+      )}
+      {acidos.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '4px' }}>[ Nylon: ]</span>
+          {acidos.map((col: any, cidx: number) => (
+            <span key={cidx} style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', borderRadius: '4px' }}>
+              🎨 {col.nombreColorante}: <strong>{col.porcentaje}%</strong> ({formatearGramos(col.gramos)})
+            </span>
+          ))}
+        </div>
+      )}
+      {dispersos.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginRight: '4px' }}>[ Poliéster: ]</span>
+          {dispersos.map((col: any, cidx: number) => (
+            <span key={cidx} style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', borderRadius: '4px' }}>
+              🎨 {col.nombreColorante}: <strong>{col.porcentaje}%</strong> ({formatearGramos(col.gramos)})
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const FormularioReceta: React.FC<FormularioRecetaProps> = ({
   preload, recetaAjuste, onRecetaGuardada, onCancelarAjuste, onToast,
 }) => {
@@ -220,6 +307,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
   // ── UI ──
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores]     = useState<Record<string, string>>({});
+  const [banosAbierto, setBanosAbierto] = useState(false);
 
   // ── Cargar catálogos + lotes al montar ──
   useEffect(() => {
@@ -512,7 +600,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
           <div className="colorante-pct" onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {gramosCol > 0 && (
               <span style={{ fontSize: '11px', color: 'var(--accent-teal)', fontFamily: 'var(--font-mono)' }}>
-                ({gramosCol.toFixed(2)} g)
+                ({formatearGramos(gramosCol)})
               </span>
             )}
             <input
@@ -561,7 +649,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
         {composicionFibraCodigo.includes('ALGODON') && reactivos.length > 0 && (
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-teal)', marginBottom: '8px', borderBottom: '1px solid rgba(20, 184, 166, 0.2)', paddingBottom: '4px', letterSpacing: '0.5px' }}>
-              — Colorantes para Algodón (Reactivos) —
+              ── Colorantes para Algodón ──
             </div>
             <div className="colorantes-grid">
               {reactivos.map(c => renderColoranteRow(c))}
@@ -573,7 +661,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
         {composicionFibraCodigo.includes('NYLON') && acidos.length > 0 && (
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-purple)', marginBottom: '8px', borderBottom: '1px solid rgba(139, 92, 246, 0.2)', paddingBottom: '4px', letterSpacing: '0.5px' }}>
-              — Colorantes para Nylon (Ácidos) —
+              ── Colorantes para Nylon ──
             </div>
             <div className="colorantes-grid">
               {acidos.map(c => renderColoranteRow(c))}
@@ -585,7 +673,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
         {composicionFibraCodigo.includes('POLIESTER') && dispersos.length > 0 && (
           <div>
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-gold)', marginBottom: '8px', borderBottom: '1px solid rgba(245, 158, 11, 0.2)', paddingBottom: '4px', letterSpacing: '0.5px' }}>
-              — Colorantes para Poliéster (Dispersos) —
+              ── Colorantes para Poliéster ──
             </div>
             <div className="colorantes-grid">
               {dispersos.map(c => renderColoranteRow(c))}
@@ -595,6 +683,284 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
       </div>
     );
   };
+
+  if (recetaAjuste) {
+    return (
+      <form onSubmit={e => e.preventDefault()} noValidate>
+
+        {/* ── DATOS HISTÓRICOS / TIMELINE DE ITERACIONES (Solo en Ajuste) ── */}
+        {iteraciones.length > 0 && (
+          <div className="card" style={{ marginBottom: '20px', borderLeft: '4px solid var(--accent-teal)' }}>
+            <div className="card-header">
+              <div className="card-icon">⏳</div>
+              <div>
+                <div className="card-title">Historial de Iteraciones (Ajustes de Color)</div>
+                <div className="card-desc">Historial cronológico de esta receta técnica</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
+              {iteraciones.map((it: any, idx: number) => (
+                <div key={idx} style={{ position: 'relative', borderLeft: '2px solid var(--border-medium)', paddingLeft: '14px', paddingBottom: '6px' }}>
+                  <div style={{ position: 'absolute', left: '-6px', top: '2px', width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-teal)' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 'bold' }}>
+                    <span>Iteración #{it.iteracion}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{new Date(it.fecha).toLocaleString('es-PE')}</span>
+                  </div>
+                  <p style={{ margin: '4px 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    <strong>Motivo/Nota:</strong> {it.observacion}
+                  </p>
+                  {renderIterationChips(it.colorantes, composicionFibraCodigo, catalogos)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── PARÁMETROS FÍSICOS (COMPACTO Y BLOQUEADO) ── */}
+        <div className="card" style={{ marginBottom: '20px', padding: '16px 20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-around', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Peso Real</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{pesoRealKg} kg</span>
+            </div>
+            <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Fibra</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {catalogos?.composicionesFibra.find(f => f.codigo === composicionFibraCodigo)?.etiqueta ?? composicionFibraCodigo}
+              </span>
+            </div>
+            <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Relación de Baño</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>1 : {relacionBano}</span>
+            </div>
+            <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Artículo</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{articuloNombre}</span>
+            </div>
+            <div style={{ width: '1px', height: '24px', backgroundColor: 'var(--border-subtle)' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Color a Reproducir</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{descripcionColor}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── FÓRMULA DE COLORANTES (EDITABLE Y DESTACADA) ── */}
+        <div
+          className="card"
+          style={{
+            marginBottom: '20px',
+            border: '2px solid var(--accent-teal)',
+            backgroundColor: 'rgba(13, 148, 136, 0.04)',
+            padding: '20px',
+          }}
+        >
+          <div className="card-header" style={{ marginBottom: '16px' }}>
+            <div className="card-icon">🎨</div>
+            <div>
+              <div className="card-title" style={{ color: 'var(--accent-teal-dim)' }}>Fórmula de Colorantes (Ajuste)</div>
+              <div className="card-desc">Única sección editable: selecciona o ajusta porcentajes</div>
+            </div>
+            {seleccionados.size > 0 && (
+              <div className={`intensidad-chip ${nivelClase}`}>
+                Σ {intensidad.suma.toFixed(4)}% — <strong>Nivel {intensidad.nivel}</strong> {intensidad.desc}
+              </div>
+            )}
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '16px' }}>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="🔍 Buscar colorante..."
+              value={busquedaColorante}
+              onChange={e => setBusquedaColorante(e.target.value)}
+              style={{ backgroundColor: '#ffffff' }}
+            />
+          </div>
+
+          {errores['colorantes'] && (
+            <div style={{ fontSize: '12px', color: 'var(--accent-red)', marginBottom: '8px' }}>
+              {errores['colorantes']}
+            </div>
+          )}
+
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', padding: '12px', border: '1px solid var(--border-subtle)' }}>
+            {renderColorantesList()}
+          </div>
+
+          {seleccionados.size > 0 && (
+            <div className="colorantes-resumen" style={{ marginTop: '16px' }}>
+              {[...seleccionados].map(id => {
+                const nombre = catalogos?.colorantesCatalogo.find(c => c.id === id)?.nombre ?? `ID:${id}`;
+                const valPct = parseFloat(porcentajes.get(id) ?? '0');
+                const gCol = !isNaN(pesoNum) && !isNaN(valPct) ? (pesoNum * 1000 * (valPct / 100)) : 0;
+                return (
+                  <span key={id} className="colorante-tag" style={{ backgroundColor: '#ffffff', border: '1px solid var(--border-subtle)' }}>
+                    {nombre}: {porcentajes.get(id) ?? '?'}% ({formatearGramos(gCol)})
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ── OBSERVACIONES / MOTIVO DE AJUSTE (OBLIGATORIO) ── */}
+        <div className="card" style={{ marginBottom: '20px', padding: '20px' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="txt-obs" style={{ fontWeight: 600 }}>
+              Observaciones / Motivo de Ajuste <span className="required">*</span>
+            </label>
+            <textarea
+              id="txt-obs"
+              className={`form-input form-textarea ${errores['observaciones'] ? 'error' : ''}`}
+              placeholder="Explica detalladamente el motivo del ajuste (ej: Faltó intensidad, Matizar 10% azul)..."
+              rows={3}
+              value={observaciones}
+              onChange={e => setObservaciones(e.target.value)}
+            />
+            {errores['observaciones'] && (
+              <span style={{ fontSize: '11px', color: 'var(--accent-red)', marginTop: '6px', display: 'block' }}>
+                {errores['observaciones']}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ── BOTONES DE ACCIÓN ── */}
+        <div className="form-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginBottom: '20px' }}>
+          <button
+            id="btn-cancelar-ajuste"
+            type="button"
+            className="btn btn-secondary"
+            onClick={onCancelarAjuste}
+            style={{ backgroundColor: '#ffffff', border: '1px solid var(--border-medium)', color: 'var(--text-secondary)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            id="btn-guardar-ajuste"
+            type="button"
+            className="btn btn-primary"
+            disabled={guardando}
+            onClick={handleGuardarAjuste}
+          >
+            {guardando ? '⏳ Guardando...' : `💾 Guardar Ajuste (Iteración ${iteraciones.length + 1})`}
+          </button>
+          <button
+            id="btn-aprobar-receta"
+            type="button"
+            className="btn btn-success"
+            style={{ backgroundColor: '#10b981', color: '#fff', border: 'none' }}
+            disabled={guardando}
+            onClick={handleAprobarReceta}
+          >
+            ✅ Aprobar Color y Finalizar
+          </button>
+        </div>
+
+        {/* ── PANEL COLAPSABLE DE BAÑOS ── */}
+        {banosPreview.length > 0 && (
+          <div className="card" style={{ padding: '16px', overflow: 'hidden' }}>
+            <button
+              type="button"
+              onClick={() => setBanosAbierto(!banosAbierto)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--accent-teal)',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '14px',
+                padding: '0',
+                outline: 'none',
+              }}
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                ⚡ Ver especificaciones de baños {banosAbierto ? '▲' : '▼'}
+              </span>
+              <span>{banosAbierto ? '∧' : '∨'}</span>
+            </button>
+            
+            {!banosAbierto && (
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
+                Baños fijos de la formulación inicial — {banosPreview.length} baños totales
+              </div>
+            )}
+
+            <div
+              style={{
+                maxHeight: banosAbierto ? '4000px' : '0px',
+                opacity: banosAbierto ? 1 : 0,
+                transition: 'max-height 200ms ease, opacity 200ms ease',
+                marginTop: banosAbierto ? '16px' : '0px',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {banosPreview.map((b: any) => (
+                  <div key={b.numeroBano} style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <div>
+                        <span style={{ background: 'var(--accent-teal)', color: '#000', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', marginRight: '8px' }}>
+                          Baño #{b.numeroBano}
+                        </span>
+                        <strong style={{ fontSize: '14px', color: 'var(--text-primary)' }}>{b.nombre}</strong>
+                      </div>
+                      <span style={{ fontSize: '12px', color: 'var(--accent-purple)', fontWeight: '600' }}>
+                        💧 {b.litrosAgua} L
+                      </span>
+                    </div>
+                    {b.nota && <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 8px 0', fontStyle: 'italic' }}>ℹ️ {b.nota}</p>}
+                    
+                    {b.productos && b.productos.length > 0 ? (
+                      <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', marginTop: '8px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                            <th style={{ padding: '4px' }}>Químico</th>
+                            <th style={{ padding: '4px', textAlign: 'right' }}>Dosis (g/L)</th>
+                            <th style={{ padding: '4px', textAlign: 'right' }}>Cantidad Requerida (g)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {b.productos.map((p: any, idx: number) => {
+                            const esColorante = p.nombre.toLowerCase().includes('colorante');
+                            return (
+                              <tr key={idx} style={{ borderBottom: '1px dotted var(--border-subtle)', color: 'var(--text-primary)' }}>
+                                <td style={{ padding: '6px 4px' }}>{p.nombre}</td>
+                                <td style={{ padding: '6px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                                  {esColorante ? '—' : p.concentracion.toFixed(2)}
+                                </td>
+                                <td style={{ padding: '6px 4px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 'bold', color: esColorante ? 'var(--text-muted)' : 'var(--accent-teal)' }}>
+                                  {esColorante ? 'Fórmula' : `${p.gramos.toFixed(2)} g`}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic', padding: '4px' }}>
+                        Enjuague simple — solo agua limpia, sin insumos químicos.
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </form>
+    );
+  }
+
 
   return (
     <form onSubmit={handleSubmit} noValidate>
@@ -620,13 +986,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
                 <p style={{ margin: '4px 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
                   <strong>Motivo/Nota:</strong> {it.observacion}
                 </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
-                  {it.colorantes.map((col: any, cidx: number) => (
-                    <span key={cidx} style={{ fontSize: '11px', padding: '2px 8px', background: 'var(--bg-glass)', border: '1px solid var(--border-subtle)', borderRadius: '4px' }}>
-                      🎨 {col.nombreColorante}: <strong>{col.porcentaje}%</strong> ({col.gramos.toFixed(2)} g)
-                    </span>
-                  ))}
-                </div>
+                {renderIterationChips(it.colorantes, composicionFibraCodigo, catalogos)}
               </div>
             ))}
           </div>
@@ -814,7 +1174,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
               const gCol = !isNaN(pesoNum) && !isNaN(valPct) ? (pesoNum * 1000 * (valPct / 100)) : 0;
               return (
                 <span key={id} className="colorante-tag">
-                  {nombre}: {porcentajes.get(id) ?? '?'}% ({gCol.toFixed(2)} g)
+                  {nombre}: {porcentajes.get(id) ?? '?'}% ({formatearGramos(gCol)})
                 </span>
               );
             })}

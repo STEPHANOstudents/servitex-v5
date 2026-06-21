@@ -38,11 +38,13 @@
          ▼
 4. El técnico crea la Receta Técnica para cada lote
    → Ingresa: peso, tipo de fibra, relación de baño y colorantes
+   → Preview en tiempo real de los baños (antes de guardar)
    → El Motor Químico calcula: litros, gramos y secuencia de baños
          │
          ▼
 5. El técnico ejecuta los baños siguiendo la receta generada
-6. Se puede ver el historial y copiar recetas como base para nuevas fórmulas
+6. Puede analizar el color resultante con la cámara o subiendo una foto
+7. Se puede copiar una receta como base para nuevas fórmulas
 ```
 
 ---
@@ -62,6 +64,41 @@
 
 ---
 
+## Funcionalidades del sistema
+
+### Módulo 1 — Órdenes de Compra
+
+- ✅ Registro de OC con número, cliente, tipo y observaciones
+- ✅ Tabla dinámica de lotes con cálculo en tiempo real (subtotal, IGV 18%, total)
+- ✅ Validación en frontend y backend
+- ✅ Tablero de órdenes con estado visible en colores
+- ✅ Modal de liquidación financiera detallada
+- ✅ Cambio de estado operativo con bitácora automática de cada transición
+
+### Módulo 2 — Laboratorio / Recetas Técnicas
+
+- ✅ Formulario técnico con catálogos cargados desde la API
+- ✅ **Preview de baños en tiempo real** — muestra la secuencia química completa mientras el técnico llena el formulario, antes de guardar
+- ✅ Motor Químico automático al guardar (litros, gramos y secuencia de baños)
+- ✅ Nivel de intensidad calculado automáticamente según la suma de porcentajes de colorantes
+- ✅ **Análisis de color por imagen o cámara** — el técnico puede fotografiar el artículo teñido y el sistema extrae el color dominante (HEX + RGB)
+- ✅ **Tablero de recetas con expansión inline** — al hacer clic en una carta se despliega el detalle de colorantes y opciones sin abrir un modal
+- ✅ **Buscador de recetas** por color, artículo o cliente
+- ✅ **Filtro por tipo de fibra** (Todos / Algodón / Nylon / Poliéster / Multifibra)
+- ✅ Modal completo con desglose de todos los baños y resumen consolidado de gramos
+- ✅ Historial de ajustes (iteraciones) de una receta con trazabilidad completa
+- ✅ Función "Copiar como base" para reutilizar fórmulas anteriores
+
+### Diseño y UX
+
+- ✅ Tema claro profesional (blanco, grises suaves, acento teal/púrpura)
+- ✅ Tipografía Inter (Google Fonts)
+- ✅ Diseño responsivo: móvil, tablet y escritorio
+- ✅ Animaciones y micro-interacciones en hover y transiciones
+- ✅ Notificaciones toast (éxito / error) en todas las acciones
+
+---
+
 ## Estructura del proyecto
 
 ```
@@ -69,12 +106,27 @@ Servitex/
 ├── backend/                         ← Servidor Node.js + API REST
 │   ├── prisma/
 │   │   ├── schema.prisma            ← Define las 20 tablas de la base de datos
-│   │   └── seed.ts                  ← Puebla los catálogos iniciales (colorantes, fibras, etc.)
+│   │   ├── seed.ts                  ← Puebla los catálogos iniciales (colorantes, fibras, etc.)
+│   │   └── reset-db.ts              ← Script para resetear la BD en desarrollo
 │   ├── src/
-│   │   ├── server.ts                ← Punto de entrada: configura Express, CORS y rutas
+│   │   ├── server.ts                ← Punto de entrada: Express, CORS y rutas
 │   │   ├── controllers/             ← Reciben la petición HTTP y devuelven la respuesta
-│   │   ├── services/                ← Contienen la lógica de negocio y acceso a BD
+│   │   │   ├── catalogos.controller.ts
+│   │   │   ├── ordenes.controller.ts
+│   │   │   ├── recetas.controller.ts
+│   │   │   ├── clientes.controller.ts
+│   │   │   └── color.controller.ts  ← Análisis de color por imagen (HEX + RGB)
+│   │   ├── services/                ← Lógica de negocio y acceso a BD
+│   │   │   ├── catalogos.service.ts
+│   │   │   ├── ordenes.service.ts
+│   │   │   ├── recetas.service.ts
+│   │   │   └── clientes.service.ts
 │   │   ├── routes/                  ← Definen las URLs de la API
+│   │   │   ├── catalogos.routes.ts  →  GET  /api/catalogos
+│   │   │   ├── ordenes.routes.ts    →  CRUD /api/ordenes
+│   │   │   ├── recetas.routes.ts    →  CRUD /api/recetas
+│   │   │   ├── clientes.routes.ts   →  CRUD /api/clientes
+│   │   │   └── color.routes.ts      →  POST /api/color/analizar
 │   │   ├── engines/
 │   │   │   └── quimico.engine.ts    ← ⭐ Motor Químico: calcula litros, gramos y baños
 │   │   ├── validators/              ← Validan que los datos de entrada sean correctos
@@ -88,11 +140,24 @@ Servitex/
 └── frontend/                        ← Aplicación React
     └── src/
         ├── App.tsx                  ← Navegación entre pestañas y estado global
-        ├── index.css                ← Estilos globales
+        ├── index.css                ← Estilos globales (tema claro, variables CSS)
         ├── lab.css                  ← Estilos del módulo Laboratorio
-        ├── components/              ← Componentes visuales (formularios, tableros, modales)
-        ├── services/                ← Funciones para llamar a la API
-        └── types/                   ← Tipos TypeScript del proyecto
+        ├── components/
+        │   ├── FormularioOrden.tsx   ← Formulario para crear una Orden de Compra
+        │   ├── FilaDetalle.tsx       ← Fila dinámica de lotes dentro del formulario
+        │   ├── TableroControl.tsx    ← Tablero de Órdenes de Compra
+        │   ├── ModalFinanciero.tsx   ← Liquidación financiera de una OC
+        │   ├── FormularioReceta.tsx  ← Formulario técnico + preview de baños en tiempo real
+        │   ├── TableroRecetas.tsx    ← Historial de Recetas con búsqueda, filtros y expansión inline
+        │   ├── ModalDetalleReceta.tsx← Desglose completo + análisis de color por cámara/imagen
+        │   └── LotesProceso.tsx     ← Vista de lotes en estado de formulación o proceso
+        ├── services/
+        │   ├── api.ts               ← Funciones HTTP para el módulo de Órdenes
+        │   ├── recetasApi.ts        ← Funciones HTTP para el módulo de Recetas
+        │   └── catalogosApi.ts      ← Función HTTP para obtener los catálogos
+        └── types/
+            ├── ordenes.ts           ← Tipos TypeScript del módulo de Órdenes
+            └── recetas.ts           ← Tipos TypeScript del módulo de Recetas y Motor Químico
 ```
 
 ---
@@ -110,37 +175,31 @@ Estas tablas contienen valores de referencia. El usuario no las edita directamen
 ---
 
 #### 1. `tipos_cliente`
-Tipos de cliente válidos en el sistema.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `codigo` | VARCHAR(30) | ✅ UNIQUE | Clave interna. Ej: `EMPRESA`, `PERSONA_NATURAL`, `TALLER_EXTERNO`, `DISTRIBUIDOR` |
+| `codigo` | VARCHAR(30) | ✅ UNIQUE | Ej: `EMPRESA`, `PERSONA_NATURAL`, `TALLER_EXTERNO`, `DISTRIBUIDOR` |
 | `etiqueta` | VARCHAR(100) | ✅ | Texto legible para mostrar en pantalla |
 | `descripcion` | VARCHAR(300) | ❌ | Descripción opcional |
 
 ---
 
 #### 2. `estados_orden`
-Estados del ciclo de vida de una Orden de Compra.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `codigo` | VARCHAR(30) | ✅ UNIQUE | Clave interna. Ej: `PENDIENTE`, `EN_PROCESO`, `COMPLETADA`, `ANULADA` |
+| `codigo` | VARCHAR(30) | ✅ UNIQUE | Ej: `PENDIENTE`, `EN_PROCESO`, `COMPLETADA`, `ANULADA` |
 | `etiqueta` | VARCHAR(100) | ✅ | Texto legible |
 | `descripcion` | VARCHAR(300) | ❌ | Descripción opcional |
-| `es_estado_final` | BOOLEAN | ✅ (default: false) | `true` si es un estado terminal (no se puede cambiar luego) |
+| `es_estado_final` | BOOLEAN | ✅ (default: false) | `true` si es un estado terminal |
 
 ---
 
 #### 3. `composiciones_fibra`
-Tipos de fibra textil. Determina qué ruta sigue el Motor Químico.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `codigo` | VARCHAR(50) | ✅ UNIQUE | Ej: `ALGODON`, `NYLON`, `POLIESTER`, `MULTIFIBRA_ALGODON_NYLON` |
+| `codigo` | VARCHAR(50) | ✅ UNIQUE | Ej: `ALGODON`, `NYLON`, `MULTIFIBRA_ALGODON_NYLON` |
 | `etiqueta` | VARCHAR(150) | ✅ | Texto legible |
 | `total_banos` | INT | ✅ | Número de baños que genera el Motor Químico (4, 7 o 9) |
 | `descripcion_ruta` | VARCHAR(300) | ❌ | Descripción del proceso de teñido |
@@ -148,20 +207,16 @@ Tipos de fibra textil. Determina qué ruta sigue el Motor Químico.
 ---
 
 #### 4. `articulos_textiles`
-Artículos que puede procesar el taller.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
 | `nombre` | VARCHAR(150) | ✅ UNIQUE | Ej: `Avío`, `Prenda`, `Hilo`, `Tela cruda`, `Cierre` |
 | `descripcion` | VARCHAR(300) | ❌ | Descripción opcional |
-| `activo` | BOOLEAN | ✅ (default: true) | Permite desactivar artículos sin borrarlos |
+| `activo` | BOOLEAN | ✅ (default: true) | Permite desactivar sin borrar |
 
 ---
 
 #### 5. `unidades_medida`
-Unidades de los lotes de teñido.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
@@ -172,8 +227,6 @@ Unidades de los lotes de teñido.
 ---
 
 #### 6. `colorantes_catalogo`
-Catálogo maestro de los 27 colorantes disponibles en el taller.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
@@ -185,8 +238,6 @@ Catálogo maestro de los 27 colorantes disponibles en el taller.
 ---
 
 #### 7. `tipos_incidencia`
-Tipos de problemas que pueden ocurrir durante el teñido.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
@@ -197,8 +248,6 @@ Tipos de problemas que pueden ocurrir durante el teñido.
 ---
 
 #### 8. `fases_proceso`
-Fases del proceso de teñido generadas por el Motor Químico.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
@@ -210,8 +259,6 @@ Fases del proceso de teñido generadas por el Motor Químico.
 ---
 
 #### 9. `tipos_reporte`
-Tipos de reportes disponibles en el sistema.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
@@ -223,32 +270,24 @@ Tipos de reportes disponibles en el sistema.
 
 ### 🏭 Tablas Operativas (11 tablas)
 
-Estas tablas contienen los datos reales del negocio que genera el uso diario de la aplicación.
-
 ---
 
 #### 10. `clientes`
-Maestro de clientes del taller.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
 | `nombre` | VARCHAR(200) | ✅ | Nombre del cliente |
 | `tipo_cliente_id` | INT | ✅ FK → `tipos_cliente` | Tipo de cliente |
-| `ruc` | VARCHAR(11) | ❌ UNIQUE | RUC del cliente (opcional) |
+| `ruc` | VARCHAR(11) | ❌ UNIQUE | RUC del cliente |
 | `telefono` | VARCHAR(15) | ❌ | Teléfono de contacto |
 | `correo` | VARCHAR(150) | ❌ | Correo electrónico |
 | `direccion` | VARCHAR(300) | ❌ | Dirección |
 | `created_at` | TIMESTAMP | ✅ (default: now) | Fecha de creación |
 | `updated_at` | TIMESTAMP | ✅ (auto) | Última modificación |
 
-> **Regla:** No pueden existir dos clientes con el mismo `nombre` y `tipo_cliente_id` al mismo tiempo.
-
 ---
 
 #### 11. `ordenes_compra`
-Cabecera de cada pedido comercial recibido.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
@@ -262,154 +301,133 @@ Cabecera de cada pedido comercial recibido.
 ---
 
 #### 12. `detalles_orden`
-Cada lote individual de artículos dentro de una OC.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
 | `orden_compra_id` | INT | ✅ FK → `ordenes_compra` (CASCADE) | OC a la que pertenece |
 | `articulo_id` | INT | ✅ FK → `articulos_textiles` | Artículo a teñir |
 | `unidad_medida_id` | INT | ✅ FK → `unidades_medida` | Unidad del lote |
-| `cantidad` | FLOAT | ✅ | Cantidad del lote (metros, kilos o piezas) |
-| `color_solicitado` | VARCHAR(150) | ✅ | Color pedido por el cliente. Ej: `Azul Navy` |
+| `cantidad` | FLOAT | ✅ | Cantidad (metros, kilos o piezas) |
+| `color_solicitado` | VARCHAR(150) | ✅ | Color pedido por el cliente |
 | `precio_por_metro` | FLOAT | ✅ | Precio unitario del servicio |
-| `total` | FLOAT | ✅ | `cantidad × precio_por_metro` (calculado automáticamente) |
+| `total` | FLOAT | ✅ | `cantidad × precio_por_metro` |
 | `created_at` | TIMESTAMP | ✅ (default: now) | Fecha de creación |
 | `updated_at` | TIMESTAMP | ✅ (auto) | Última modificación |
-
-> **CASCADE:** Si se elimina la OC, se eliminan automáticamente todos sus detalles.
 
 ---
 
 #### 13. `recetas_tecnicas`
-Formulario técnico de laboratorio para un lote. Relación 1:1 con `detalles_orden`.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `detalle_orden_id` | INT | ✅ FK → `detalles_orden` (UNIQUE, CASCADE) | Lote al que pertenece (1 receta por lote) |
-| `plantilla_id` | INT | ❌ FK → `plantillas_receta` (SetNull) | Plantilla base usada (si se copió de una existente) |
-| `articulo_id` | INT | ✅ FK → `articulos_textiles` | Artículo textil a teñir |
+| `detalle_orden_id` | INT | ✅ FK (UNIQUE, CASCADE) | Lote al que pertenece (1 receta por lote) |
+| `plantilla_id` | INT | ❌ FK → `plantillas_receta` | Plantilla base usada (si se copió de una existente) |
+| `articulo_id` | INT | ✅ FK → `articulos_textiles` | Artículo textil |
 | `composicion_fibra_id` | INT | ✅ FK → `composiciones_fibra` | Tipo de fibra (determina la ruta del Motor Químico) |
 | `peso_real_kg` | FLOAT | ✅ | Peso real del lote en kg |
-| `relacion_bano` | FLOAT | ✅ | Relación de baño en L/kg. Ej: `40` |
-| `litros_agua` | FLOAT | ✅ | `peso_real_kg × relacion_bano` — calculado por el Motor Químico |
-| `descripcion_color` | VARCHAR(200) | ✅ | Nombre o código del color a lograr |
+| `relacion_bano` | FLOAT | ✅ | Relación de baño en L/kg |
+| `litros_agua` | FLOAT | ✅ | `peso_real_kg × relacion_bano` |
+| `descripcion_color` | VARCHAR(200) | ✅ | Nombre o código del color |
 | `nivel_intensidad` | FLOAT | ✅ | `1.0` Pastel / `2.0` Claro / `3.0` Intermedio / `4.0` Intenso |
-| `observaciones_tecnicas` | TEXT | ❌ | Notas técnicas adicionales |
-| `estado` | VARCHAR(30) | ✅ (default: `FORMULACION`) | Estado de la receta |
-| `secuencia_banos` | JSON | ❌ | Resultado completo del Motor Químico (todos los baños con litros y gramos) |
-| `iteraciones` | JSON | ❌ (default: `[]`) | Historial de ajustes y versiones de la receta |
+| `observaciones_tecnicas` | TEXT | ❌ | Notas técnicas |
+| `estado` | VARCHAR(30) | ✅ (default: `FORMULACION`) | Estado: `FORMULACION`, `PROCESO`, `APROBADO` |
+| `secuencia_banos` | JSON | ❌ | Resultado completo del Motor Químico |
+| `iteraciones` | JSON | ❌ (default: `[]`) | Historial de ajustes y versiones |
+| `color_hex` | VARCHAR(7) | ❌ | Color analizado por cámara. Ej: `#3A5FCD` |
+| `color_rgb` | JSON | ❌ | Color analizado en formato `{r, g, b}` |
+| `color_miniatura` | TEXT | ❌ | Imagen en base64 del recorte analizado |
 | `created_at` | TIMESTAMP | ✅ (default: now) | Fecha de creación |
 | `updated_at` | TIMESTAMP | ✅ (auto) | Última modificación |
 
 ---
 
 #### 14. `colorantes_formula`
-Cada colorante individual y su porcentaje dentro de una receta.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
 | `receta_tecnica_id` | INT | ✅ FK → `recetas_tecnicas` (CASCADE) | Receta a la que pertenece |
 | `colorante_id` | INT | ✅ FK → `colorantes_catalogo` | Colorante del catálogo |
-| `porcentaje` | FLOAT | ✅ | % de concentración del colorante en la fórmula |
+| `porcentaje` | FLOAT | ✅ | % de concentración del colorante |
 | `created_at` | TIMESTAMP | ✅ (default: now) | Fecha de creación |
 | `updated_at` | TIMESTAMP | ✅ (auto) | Última modificación |
 
 ---
 
 #### 15. `notas_entrega`
-Registro de entrega de una OC al cliente. Relación 1:1 con `ordenes_compra`.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `orden_compra_id` | INT | ✅ FK → `ordenes_compra` (UNIQUE) | OC entregada (1 nota por OC) |
+| `orden_compra_id` | INT | ✅ FK (UNIQUE) | OC entregada (1 nota por OC) |
 | `estado` | VARCHAR(20) | ✅ (default: `PENDIENTE`) | Estado de la entrega |
-| `receptor_nombre` | VARCHAR(200) | ✅ | Nombre de la persona que recibe |
-| `fecha_entrega` | TIMESTAMP | ❌ | Fecha y hora real de entrega |
-| `observaciones` | TEXT | ❌ | Notas de la entrega |
-| `created_at` | TIMESTAMP | ✅ (default: now) | Fecha de creación |
-| `updated_at` | TIMESTAMP | ✅ (auto) | Última modificación |
+| `receptor_nombre` | VARCHAR(200) | ✅ | Nombre de quien recibe |
+| `fecha_entrega` | TIMESTAMP | ❌ | Fecha real de entrega |
+| `observaciones` | TEXT | ❌ | Notas |
+| `created_at` | TIMESTAMP | ✅ | Fecha de creación |
+| `updated_at` | TIMESTAMP | ✅ | Última modificación |
 
 ---
 
 #### 16. `bitacora_estados`
-Log inmutable de cada cambio de estado de una OC. Solo se inserta, nunca se modifica.
+Log inmutable de cada cambio de estado de una OC. Solo se inserta, nunca se modifica ni se borra.
 
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `orden_compra_id` | INT | ✅ FK → `ordenes_compra` (CASCADE) | OC que cambió de estado |
-| `estado_anterior_id` | INT | ✅ FK → `estados_orden` | Estado **desde** el que salió la OC |
-| `estado_nuevo_id` | INT | ✅ FK → `estados_orden` | Estado **al que** pasó la OC |
-| `observacion` | VARCHAR(300) | ❌ | Comentario o motivo del cambio |
+| `orden_compra_id` | INT | ✅ FK (CASCADE) | OC que cambió de estado |
+| `estado_anterior_id` | INT | ✅ FK → `estados_orden` | Estado **desde** el que salió |
+| `estado_nuevo_id` | INT | ✅ FK → `estados_orden` | Estado **al que** pasó |
+| `observacion` | VARCHAR(300) | ❌ | Motivo del cambio |
 | `changed_at` | TIMESTAMP | ✅ (default: now) | Fecha y hora exacta del cambio |
-
-> **Ejemplo de registros:**
-> | id | orden_compra_id | estado_anterior | estado_nuevo | changed_at |
-> |---|---|---|---|---|
-> | 1 | 12 | PENDIENTE | EN_PROCESO | 2026-06-20 09:00 |
-> | 2 | 12 | EN_PROCESO | COMPLETADA | 2026-06-20 16:45 |
 
 ---
 
 #### 17. `incidencias_proceso`
-Registro de problemas ocurridos durante el teñido de un lote.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `detalle_orden_id` | INT | ✅ FK → `detalles_orden` (CASCADE) | Lote donde ocurrió el problema |
-| `tipo_incidencia_id` | INT | ✅ FK → `tipos_incidencia` | Tipo de problema registrado |
-| `descripcion` | TEXT | ✅ | Descripción detallada del problema |
+| `detalle_orden_id` | INT | ✅ FK (CASCADE) | Lote con el problema |
+| `tipo_incidencia_id` | INT | ✅ FK → `tipos_incidencia` | Tipo de problema |
+| `descripcion` | TEXT | ✅ | Descripción del problema |
 | `accion_tomada` | TEXT | ❌ | Qué se hizo para resolverlo |
-| `resuelta` | BOOLEAN | ✅ (default: false) | ¿Se resolvió el problema? |
-| `created_at` | TIMESTAMP | ✅ (default: now) | Fecha de registro |
-| `updated_at` | TIMESTAMP | ✅ (auto) | Última modificación |
+| `resuelta` | BOOLEAN | ✅ (default: false) | ¿Problema resuelto? |
+| `created_at` | TIMESTAMP | ✅ | Fecha de registro |
+| `updated_at` | TIMESTAMP | ✅ | Última modificación |
 
 ---
 
 #### 18. `plantillas_receta`
-Fórmulas de color reutilizables guardadas por el laboratorio.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `nombre_plantilla` | VARCHAR(200) | ✅ UNIQUE | Nombre descriptivo. Ej: `Azul Navy Algodón Intenso` |
-| `composicion_fibra_id` | INT | ✅ FK → `composiciones_fibra` | Tipo de fibra de la plantilla |
-| `relacion_bano` | FLOAT | ✅ | Relación de baño estándar de la plantilla |
+| `nombre_plantilla` | VARCHAR(200) | ✅ UNIQUE | Nombre descriptivo |
+| `composicion_fibra_id` | INT | ✅ FK → `composiciones_fibra` | Tipo de fibra |
+| `relacion_bano` | FLOAT | ✅ | Relación de baño estándar |
 | `descripcion_color` | VARCHAR(200) | ✅ | Color de referencia |
 | `activa` | BOOLEAN | ✅ (default: true) | Permite desactivar sin borrar |
-| `created_at` | TIMESTAMP | ✅ (default: now) | Fecha de creación |
-| `updated_at` | TIMESTAMP | ✅ (auto) | Última modificación |
+| `created_at` | TIMESTAMP | ✅ | Fecha de creación |
+| `updated_at` | TIMESTAMP | ✅ | Última modificación |
 
 ---
 
 #### 19. `colorantes_plantilla`
-Colorantes y porcentajes que componen una plantilla de receta.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `plantilla_id` | INT | ✅ FK → `plantillas_receta` (CASCADE) | Plantilla a la que pertenece |
+| `plantilla_id` | INT | ✅ FK (CASCADE) | Plantilla a la que pertenece |
 | `colorante_id` | INT | ✅ FK → `colorantes_catalogo` | Colorante del catálogo |
-| `porcentaje` | FLOAT | ✅ | % de concentración del colorante |
+| `porcentaje` | FLOAT | ✅ | % de concentración |
 
 ---
 
 #### 20. `reportes_generados`
-Snapshot de reportes generados. No tiene relaciones de salida hacia otras tablas operativas.
-
 | Columna | Tipo | Requerido | Descripción |
 |---|---|---|---|
 | `id` | INT | ✅ PK | Identificador único |
-| `tipo_reporte_id` | INT | ✅ FK → `tipos_reporte` | Tipo de reporte generado |
-| `fecha_desde` | TIMESTAMP | ✅ | Inicio del período analizado |
-| `fecha_hasta` | TIMESTAMP | ✅ | Fin del período analizado |
-| `resumen_json` | JSON | ✅ | Datos del reporte en formato JSON |
-| `generado_en` | TIMESTAMP | ✅ (default: now) | Fecha y hora en que se generó |
+| `tipo_reporte_id` | INT | ✅ FK → `tipos_reporte` | Tipo de reporte |
+| `fecha_desde` | TIMESTAMP | ✅ | Inicio del período |
+| `fecha_hasta` | TIMESTAMP | ✅ | Fin del período |
+| `resumen_json` | JSON | ✅ | Datos del reporte |
+| `generado_en` | TIMESTAMP | ✅ (default: now) | Cuándo se generó |
 
 ---
 
@@ -417,32 +435,30 @@ Snapshot de reportes generados. No tiene relaciones de salida hacia otras tablas
 
 ```
 tipos_cliente ──FK──► clientes ──FK──► ordenes_compra ──FK──► estados_orden
-                          │                  │ 1:N                │
-                          │                  │                    │ (antes/después)
-                          │                  ▼                    ▼
-                          │          detalles_orden        bitacora_estados
-                          │               │ 1:N
-                          │               ├──FK──► articulos_textiles
-                          │               ├──FK──► unidades_medida
-                          │               │
-                          │               ├──── recetas_tecnicas ──FK──► composiciones_fibra
-                          │               │          │ 1:N               plantillas_receta
-                          │               │          └──── colorantes_formula ──FK──► colorantes_catalogo
-                          │               │
-                          │               ├──── incidencias_proceso ──FK──► tipos_incidencia
-                          │               │
-                          └──── notas_entrega
+                                            │ 1:N                │
+                                            │                    │ (antes/después)
+                                            ▼                    ▼
+                                      detalles_orden      bitacora_estados
+                                           │ 1:N
+                                           ├──FK──► articulos_textiles
+                                           ├──FK──► unidades_medida
+                                           ├──FK──► notas_entrega (1:1)
+                                           │
+                                           ├──── recetas_tecnicas ──FK──► composiciones_fibra
+                                           │          │ 1:N               plantillas_receta
+                                           │          └──── colorantes_formula ──FK──► colorantes_catalogo
+                                           │
+                                           └──── incidencias_proceso ──FK──► tipos_incidencia
 
 plantillas_receta ──FK──► colorantes_plantilla ──FK──► colorantes_catalogo
 tipos_reporte ──FK──► reportes_generados
-fases_proceso (tabla independiente — usada por el Motor Químico internamente)
 ```
 
 ---
 
 ## ⭐ Motor Químico — Cómo funciona
 
-El Motor Químico (`quimico.engine.ts`) es el componente más importante del backend. Dado el **peso del artículo** y el **tipo de fibra**, calcula automáticamente toda la secuencia de baños.
+El Motor Químico (`quimico.engine.ts`) calcula automáticamente toda la secuencia de baños dado el **peso del artículo** y el **tipo de fibra**.
 
 ### Fórmulas base
 
@@ -451,14 +467,9 @@ litros por baño  =  peso_real_kg  ×  relación_de_baño
 gramos de químico  =  concentración (g/L)  ×  litros_de_agua
 ```
 
-**Ejemplo:** Artículo de 2.5 kg, relación de baño 40 → **100 litros por baño**
-La Potasa Cáustica tiene concentración 3.0 g/L → **300 gramos**
-
 ### Nivel de intensidad del color
 
-Se suma el porcentaje de todos los colorantes de la fórmula:
-
-| Suma de % de colorantes | Nivel | Color | Sal Industrial | Potasa Cáustica |
+| Suma de % de colorantes | Nivel | Descripción | Sal Industrial | Potasa Cáustica |
 |---|---|---|---|---|
 | ≤ 0.01% | 1 | Pasteles | 10 g/L | 3 g/L |
 | 0.01% – 0.1% | 2 | Claros | 20 g/L | 3 g/L |
@@ -467,35 +478,31 @@ Se suma el porcentaje de todos los colorantes de la fórmula:
 
 ### Secuencias de baños por tipo de fibra
 
-| Fibra | Total de baños | Resumen del proceso |
+| Fibra | Baños | Proceso |
 |---|---|---|
-| **Algodón** | 9 baños | 4 de Preblanqueo + 5 de Teñido y Acabado |
-| **Nylon** | 4 baños | Teñido directo con ácido acético + Acabado |
-| **Poliéster** | 4 baños | Misma ruta que Nylon |
-| **Multifibra Algodón + Nylon** | 7 baños | Teñido Algodón → Teñido Nylon → Acabado |
-| **Multifibra Algodón + Poliéster** | 7 baños | Teñido Algodón → Teñido Poliéster → Acabado |
-| **Multifibra Nylon + Poliéster** | 7 baños | Teñido Poliéster → Teñido Nylon → Acabado |
-
-> **Regla especial en multifibras:** Cuando se combina Algodón con un sintético, el baño de Neutralizado del Algodón se elimina porque el Ácido Acético del baño sintético ya cumple esa función.
+| **Algodón** | 9 | 4 de Preblanqueo + 5 de Teñido y Acabado |
+| **Nylon** | 4 | Teñido directo con ácido + Acabado |
+| **Poliéster** | 4 | Misma ruta que Nylon |
+| **Multifibra Algodón + Nylon** | 7 | Teñido Algodón → Teñido Nylon → Acabado |
+| **Multifibra Algodón + Poliéster** | 7 | Teñido Algodón → Teñido Poliéster → Acabado |
+| **Multifibra Nylon + Poliéster** | 7 | Teñido Poliéster → Teñido Nylon → Acabado |
 
 ---
 
 ## API REST — Endpoints
 
-### `GET /api/health`
-Verifica que el servidor esté funcionando.
+### `GET /api/health` — Verifica que el servidor esté activo
 
-### `GET /api/catalogos`
-Devuelve los 9 catálogos en una sola llamada (para poblar los formularios del frontend).
+### `GET /api/catalogos` — Todos los catálogos en una sola llamada
 
 ### Órdenes de Compra — `/api/ordenes`
 
 | Método | Endpoint | Qué hace |
 |---|---|---|
-| `POST` | `/api/ordenes` | Crea una OC completa (cabecera + lotes en transacción atómica) |
+| `POST` | `/api/ordenes` | Crea una OC completa (cabecera + lotes en transacción) |
 | `GET` | `/api/ordenes` | Lista todas las OC con paginación |
-| `GET` | `/api/ordenes/:id` | Detalle de una OC con liquidación financiera |
-| `PATCH` | `/api/ordenes/:id/estado` | Cambia el estado operativo de la OC |
+| `GET` | `/api/ordenes/:id` | Detalle con liquidación financiera |
+| `PATCH` | `/api/ordenes/:id/estado` | Cambia el estado de la OC |
 
 ### Recetas Técnicas — `/api/recetas`
 
@@ -503,17 +510,23 @@ Devuelve los 9 catálogos en una sola llamada (para poblar los formularios del f
 |---|---|---|
 | `POST` | `/api/recetas` | Crea receta y ejecuta el Motor Químico |
 | `GET` | `/api/recetas` | Lista el historial de recetas |
-| `GET` | `/api/recetas/:id` | Detalle con todos los baños y gramos calculados |
+| `GET` | `/api/recetas/:id` | Detalle con todos los baños y gramos |
+| `POST` | `/api/recetas/:id/iteracion` | Registra un ajuste de color sobre una receta |
+| `PATCH` | `/api/recetas/:id/aprobar` | Aprueba la receta (estado final) |
 
-### Formato estándar de respuesta
-```json
-{
-  "success": true,
-  "message": "Descripción del resultado",
-  "data": { "...": "..." },
-  "timestamp": "2026-06-20T14:00:00.000Z"
-}
-```
+### Análisis de Color — `/api/color`
+
+| Método | Endpoint | Qué hace |
+|---|---|---|
+| `POST` | `/api/color/analizar` | Recibe una imagen y devuelve el color dominante (HEX + RGB) |
+| `POST` | `/api/color/guardar/:id` | Guarda el color analizado en la receta |
+
+### Clientes — `/api/clientes`
+
+| Método | Endpoint | Qué hace |
+|---|---|---|
+| `GET` | `/api/clientes` | Lista todos los clientes |
+| `POST` | `/api/clientes` | Crea un cliente nuevo |
 
 ---
 
@@ -532,8 +545,6 @@ DESARROLLO LOCAL
                                                   │
                                        [PostgreSQL de Render vía SSL]
 ```
-
-> El proxy de Vite redirige automáticamente `/api/*` al backend local. No hay que cambiar URLs entre entornos.
 
 ---
 
@@ -557,8 +568,7 @@ VITE_API_URL=https://servitex-backend.onrender.com
 ## Instalación y ejecución local
 
 ### Requisitos
-- Node.js ≥ 18
-- npm ≥ 9
+- Node.js ≥ 18 y npm ≥ 9
 - Credenciales de la base de datos PostgreSQL de Render
 
 ### Paso 1 — Clonar el repositorio
@@ -657,38 +667,14 @@ VITE_API_URL = https://servitex-backend.onrender.com
 
 ## Notas técnicas para desarrolladores
 
-- **Prisma v7** usa `prisma.config.ts` como archivo declarativo. La URL de PostgreSQL se configura en el adaptador `@prisma/adapter-pg`, no en el `schema.prisma`.
-- **El build del backend** ejecuta `prisma generate && tsc`. Esto regenera el cliente Prisma en cada deploy.
-- **Caché de catálogos:** `catalogos.cache.ts` carga los IDs de catálogo en memoria al arrancar el servidor para evitar consultas repetidas.
-- **Motor Químico sin enums:** `quimico.engine.ts` recibe el código de fibra como `string` (`'ALGODON'`, `'NYLON'`…), lo que lo hace independiente de los tipos generados por Prisma.
-- **SPA en Render:** `frontend/public/_redirects` contiene `/* /index.html 200`. Sin esto, recargar cualquier ruta en el navegador devuelve 404.
-- **`--force-reset` solo en desarrollo.** En producción real con datos reales, usar `prisma migrate deploy`.
-
----
-
-## Funcionalidades implementadas
-
-### Módulo 1 — Órdenes de Compra
-- ✅ Registro de OC con número, cliente, tipo y observaciones
-- ✅ Tabla dinámica de lotes con cálculo en tiempo real (subtotal, IGV 18%, total)
-- ✅ Validación en frontend y backend
-- ✅ Tablero de órdenes con estado visible
-- ✅ Modal de liquidación financiera detallada
-- ✅ Cambio de estado operativo con bitácora automática
-
-### Módulo 2 — Laboratorio / Recetas Técnicas
-- ✅ Formulario técnico con catálogos cargados desde la API
-- ✅ Motor Químico automático (litros, gramos, secuencia de baños)
-- ✅ Nivel de intensidad calculado automáticamente
-- ✅ Historial de recetas en grid de tarjetas
-- ✅ Modal con desglose completo por baño
-- ✅ Función "Copiar como base" para reutilizar fórmulas
-
-### Diseño
-- ✅ Tema claro profesional (blanco, grises, acento teal)
-- ✅ Tipografía Inter (Google Fonts)
-- ✅ Responsivo: móvil, tablet y escritorio
-- ✅ Animaciones y notificaciones toast
+- **Prisma v7** usa `prisma.config.ts` declarativo. La URL de PostgreSQL se configura en el adaptador `@prisma/adapter-pg`, no en el `schema.prisma`.
+- **El build del backend** ejecuta `prisma generate && tsc` en cada deploy para regenerar el cliente.
+- **Caché de catálogos:** `catalogos.cache.ts` carga los IDs en memoria al arrancar para evitar consultas repetidas.
+- **Motor Químico:** recibe el código de fibra como `string` (`'ALGODON'`, `'NYLON'`…), independiente de los enums de Prisma.
+- **Preview de baños:** el frontend replica las fórmulas del Motor Químico localmente (`calculatePreviewBaths`) para mostrar resultados en tiempo real sin llamar a la API.
+- **Análisis de color:** usa la API del navegador `getUserMedia` para acceder a la cámara, y Canvas API para extraer píxeles del área seleccionada. El resultado se envía al backend para persistirlo.
+- **SPA en Render:** `frontend/public/_redirects` contiene `/* /index.html 200`. Sin esto, recargar cualquier ruta devuelve 404.
+- **`--force-reset` solo en desarrollo.** En producción real usar `prisma migrate deploy`.
 
 ---
 
