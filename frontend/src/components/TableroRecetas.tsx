@@ -62,7 +62,7 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
 
   useEffect(() => {
-    fetchCatalogos().then(setCatalogos).catch(err => console.error("Error cargando catálogos en tablero:", err));
+    fetchCatalogos().then(setCatalogos).catch(() => { /* catálogos opcionales para heurística de tipo */ });
   }, []);
 
   const seleccionarFiltro = (f: 'TODOS' | 'ALGODON' | 'NYLON' | 'POLIESTER' | 'MULTIFIBRA') => {
@@ -432,50 +432,26 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
                 const acidos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'ACIDO');
                 const dispersos = receta.colorantes.filter(c => getColoranteTipo(c.coloranteId, c.nombreColorante, catalogos) === 'DISPERSO');
 
+                /** Renderiza una sección de colorantes con su etiqueta de fibra. */
+                const renderGrupo = (label: string, lista: typeof reactivos) =>
+                  lista.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>[ {label} ]</div>
+                      <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {lista.map((c, i) => (
+                          <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)', paddingLeft: '6px' }}>
+                            · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+
                 return (
                   <>
-                    {reactivos.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>[ Algodón ]</div>
-                        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {reactivos.map((c, i) => {
-                            return (
-                              <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)', paddingLeft: '6px' }}>
-                                · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
-                    {acidos.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>[ Nylon ]</div>
-                        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {acidos.map((c, i) => {
-                            return (
-                              <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)', paddingLeft: '6px' }}>
-                                · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
-                    {dispersos.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '3px' }}>[ Poliéster ]</div>
-                        <ul style={{ listStyle: 'none', paddingLeft: 0, margin: '0 0 6px 0', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          {dispersos.map((c, i) => {
-                            return (
-                              <li key={i} style={{ fontFamily: 'var(--font-base)', color: 'var(--text-secondary)', paddingLeft: '6px' }}>
-                                · {c.nombreColorante} {c.porcentaje.toFixed(4)}%
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
+                    {renderGrupo('Algodón', reactivos)}
+                    {renderGrupo('Nylon', acidos)}
+                    {renderGrupo('Poliéster', dispersos)}
                   </>
                 );
               })()}

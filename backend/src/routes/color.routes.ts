@@ -1,3 +1,7 @@
+// =============================================================================
+// SERVITEX — Rutas de Análisis de Color (Módulo 2.5)
+// Usa multer para recibir la imagen en memoria (sin guardar en disco).
+// =============================================================================
 import { Router } from 'express';
 import multer from 'multer';
 import { analizarColor } from '../controllers/color.controller';

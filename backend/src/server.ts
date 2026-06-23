@@ -15,9 +15,7 @@ const PORT: number = parseInt(process.env.PORT || '3000', 10);
 
 // ---------------------------------------------------------------------------
 // Middleware global
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-// CORS — permite el frontend en dev y en producción (Render Static Site)
+// CORS: permite origen del frontend local y subdominio de Render en producción.
 // ---------------------------------------------------------------------------
 app.use(cors({
   origin: (origin, callback) => {

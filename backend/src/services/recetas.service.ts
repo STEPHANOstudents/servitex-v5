@@ -1,5 +1,12 @@
 // =============================================================================
-// SERVITEX — Servicio de Recetas Técnicas (Versión 3.0 — Esquema Normalizado)
+// SERVITEX — Servicio de Recetas Técnicas
+// Versión 3.0 — Esquema Normalizado con Motor Químico integrado.
+//
+// Responsabilidades:
+//   - CRUD de RecetasTécnicas con transacciones atómicas en Prisma
+//   - Automatización de estados de OC (PENDIENTE → EN_PROCESO → COMPLETADA)
+//   - Historial de iteraciones (ajustes de colorantes)
+//   - Integración con el Motor Químico para calcular baños y dosis
 // =============================================================================
 import { prisma } from '../lib/prisma';
 import { getCatalogosCache, resolverCodigo } from '../lib/catalogos.cache';
@@ -7,39 +14,236 @@ import {
   ejecutarMotorQuimico,
   calcularNivelIntensidad,
 } from '../engines/quimico.engine';
-import type { CrearRecetaInput, RecetaResponse, ColoranteInput } from '../types/recetas.types';
+import type { CrearRecetaInput, RecetaResponse, RecetaListDTO, ColoranteInput } from '../types/recetas.types';
 
+// ---------------------------------------------------------------------------
+// Tipo Prisma enriquecido — resultado de findUnique/update con includes
+// Se usa internamente para que TypeScript conozca la forma del objeto.
+// ---------------------------------------------------------------------------
+type RecetaConRelaciones = {
+  id: number;
+  detalleOrdenId: number;
+  pesoRealKg: number;
+  articuloId: number;
+  relacionBano: number;
+  litrosAgua: number;
+  descripcionColor: string;
+  nivelIntensidad: number;
+  observacionesTecnicas: string | null;
+  estado: string;
+  secuenciaBanos: any;
+  iteraciones: any;
+  colorHex: string | null;
+  colorRgb: any;
+  colorMiniatura: string | null;
+  createdAt: Date;
+  articulo: { nombre: string };
+  composicionFibra: { codigo: string; etiqueta: string };
+  colorantes: Array<{ coloranteId: number; porcentaje: number; colorante?: { nombre: string } }>;
+};
+
+// ---------------------------------------------------------------------------
+// Includes Prisma reutilizables — centraliza la proyección de relaciones
+// ---------------------------------------------------------------------------
+
+/** Include para operaciones que NO necesitan el nombre del colorante anidado. */
+const INCLUDE_SIN_COLORANTE_NOMBRE = {
+  colorantes:       { orderBy: { createdAt: 'asc' as const } },
+  composicionFibra: true,
+  articulo:         true,
+} as const;
+
+/** Include para operaciones que SÍ necesitan el nombre del colorante anidado. */
+const INCLUDE_CON_COLORANTE_NOMBRE = {
+  colorantes:       { orderBy: { createdAt: 'asc' as const }, include: { colorante: true } },
+  composicionFibra: true,
+  articulo:         true,
+} as const;
+
+// =============================================================================
+// HELPER: Mapear Prisma row → RecetaResponse
+// Elimina la duplicación de esta transformación que antes aparecía 4 veces.
+// mapColorantes puede ser undefined; en ese caso se usa c.colorante.nombre.
+// =============================================================================
+function mapRecetaToDTO(
+  r: RecetaConRelaciones,
+  motorQuimico: ReturnType<typeof ejecutarMotorQuimico>,
+  mapColorantes?: Map<number, string>
+): RecetaResponse {
+  return {
+    receta: {
+      id:                    r.id,
+      detalleOrdenId:        r.detalleOrdenId,
+      pesoRealKg:            r.pesoRealKg,
+      articuloId:            r.articuloId,
+      articulo:              r.articulo.nombre,
+      composicionFibra:      r.composicionFibra.codigo,
+      composicionFibraLabel: r.composicionFibra.etiqueta,
+      relacionBano:          r.relacionBano,
+      litrosAgua:            r.litrosAgua,
+      descripcionColor:      r.descripcionColor,
+      nivelIntensidad:       r.nivelIntensidad,
+      observacionesTecnicas: r.observacionesTecnicas,
+      estado:                r.estado,
+      secuenciaBanos:        r.secuenciaBanos,
+      iteraciones:           r.iteraciones,
+      colorHex:              r.colorHex,
+      colorRgb:              r.colorRgb,
+      colorMiniatura:        r.colorMiniatura,
+      createdAt:             r.createdAt.toISOString(),
+      colorantes: r.colorantes.map((c) => {
+        // Si viene un mapa explícito lo usamos; si no, usamos el join de Prisma.
+        const nombre = mapColorantes
+          ? (mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`)
+          : (c.colorante?.nombre ?? `ID:${c.coloranteId}`);
+        return { coloranteId: c.coloranteId, nombreColorante: nombre, porcentaje: c.porcentaje };
+      }),
+    },
+    motorQuimico,
+  };
+}
+
+// =============================================================================
+// HELPER: Construir Motor Químico a partir de una receta con relaciones
+// =============================================================================
+function buildMotorQuimico(r: RecetaConRelaciones) {
+  return ejecutarMotorQuimico({
+    composicion:  r.composicionFibra.codigo,
+    pesoRealKg:   r.pesoRealKg,
+    relacionBano: r.relacionBano,
+    colorantes:   r.colorantes.map((c) => ({
+      coloranteId: c.coloranteId,
+      porcentaje:  c.porcentaje,
+    })),
+  });
+}
+
+// =============================================================================
+// HELPER: Automatizar transición de estado de la OC dentro de una transacción.
+// Cuando se crea la PRIMERA receta técnica de una OC, la OC pasa a EN_PROCESO.
+// =============================================================================
+async function transicionarOCaEnProceso(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  detalleOrdenId: number
+): Promise<void> {
+  const det = await tx.detalleOrden.findUnique({
+    where: { id: detalleOrdenId },
+    select: { ordenCompraId: true },
+  });
+  if (!det) return;
+
+  const oc = await tx.ordenCompra.findUnique({
+    where: { id: det.ordenCompraId },
+    include: { estado: true },
+  });
+  if (!oc || oc.estado.codigo !== 'PENDIENTE') return;
+
+  // Buscar los dos estados necesarios para la transición
+  const [estadoPendiente, estadoEnProceso] = await Promise.all([
+    tx.estadoOrden.findUnique({ where: { codigo: 'PENDIENTE' } }),
+    tx.estadoOrden.findUnique({ where: { codigo: 'EN_PROCESO' } }),
+  ]);
+  if (!estadoPendiente || !estadoEnProceso) return;
+
+  await tx.ordenCompra.update({
+    where: { id: oc.id },
+    data: { estadoId: estadoEnProceso.id },
+  });
+
+  await tx.bitacoraEstado.create({
+    data: {
+      ordenCompraId:    oc.id,
+      estadoAnteriorId: estadoPendiente.id,
+      estadoNuevoId:    estadoEnProceso.id,
+      observacion:      'Primera receta técnica registrada en el laboratorio.',
+    },
+  });
+}
+
+// =============================================================================
+// HELPER: Automatizar transición de estado de la OC a COMPLETADA.
+// Ocurre cuando TODOS los lotes de la OC tienen receta en estado APROBADO.
+// =============================================================================
+async function transicionarOCaCompletada(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  detalleOrdenId: number
+): Promise<void> {
+  const det = await tx.detalleOrden.findUnique({
+    where: { id: detalleOrdenId },
+    select: { ordenCompraId: true },
+  });
+  if (!det) return;
+
+  const OCId = det.ordenCompraId;
+
+  const [totalLotes, lotesAprobados] = await Promise.all([
+    tx.detalleOrden.count({ where: { ordenCompraId: OCId } }),
+    tx.detalleOrden.count({ where: { ordenCompraId: OCId, recetaTecnica: { estado: 'APROBADO' } } }),
+  ]);
+
+  // Solo completar si hay lotes y todos están aprobados
+  if (totalLotes === 0 || lotesAprobados !== totalLotes) return;
+
+  const [estadoEnProceso, estadoCompletada] = await Promise.all([
+    tx.estadoOrden.findUnique({ where: { codigo: 'EN_PROCESO' } }),
+    tx.estadoOrden.findUnique({ where: { codigo: 'COMPLETADA' } }),
+  ]);
+  if (!estadoEnProceso || !estadoCompletada) return;
+
+  const oc = await tx.ordenCompra.findUnique({
+    where: { id: OCId },
+    select: { estadoId: true },
+  });
+  // Evitar actualizar si ya está en COMPLETADA
+  if (!oc || oc.estadoId === estadoCompletada.id) return;
+
+  await tx.ordenCompra.update({
+    where: { id: OCId },
+    data: { estadoId: estadoCompletada.id },
+  });
+
+  await tx.bitacoraEstado.create({
+    data: {
+      ordenCompraId:    OCId,
+      estadoAnteriorId: estadoEnProceso.id,
+      estadoNuevoId:    estadoCompletada.id,
+      observacion:      'Todos los lotes de la OC fueron aprobados en Lab Histórico.',
+    },
+  });
+}
+
+// =============================================================================
+// SERVICIO DE RECETAS
+// =============================================================================
 export const recetasService = {
 
   // ---------------------------------------------------------------------------
-  // CREAR RECETA CON TRANSACCIÓN ATÓMICA
+  // CREAR RECETA — Transacción atómica (nueva formulación inicial)
+  // 1. Resuelve catálogos e IDs de colorantes
+  // 2. Ejecuta el Motor Químico para obtener la secuencia de baños
+  // 3. Persiste la receta + colorantes en una sola transacción
+  // 4. Automatiza la transición de OC PENDIENTE → EN_PROCESO
   // ---------------------------------------------------------------------------
   async crearReceta(datos: CrearRecetaInput): Promise<RecetaResponse> {
     const cache = await getCatalogosCache();
 
-    // Resolver IDs de catálogo
     const composicionFibraId = resolverCodigo(
       cache.composicionesFibra,
       datos.composicionFibraCodigo,
       'composiciones_fibra'
     );
 
-    // Verificar existencia del lote y que no tenga receta
+    // Verificar existencia del lote y que no tenga receta previa
     const detalle = await prisma.detalleOrden.findUnique({
       where: { id: datos.detalleOrdenId },
       include: { recetaTecnica: true },
     });
-
-    if (!detalle) {
-      throw new Error(`No existe un DetalleOrden con ID ${datos.detalleOrdenId}.`);
-    }
+    if (!detalle) throw new Error(`No existe un DetalleOrden con ID ${datos.detalleOrdenId}.`);
     if (detalle.recetaTecnica) {
-      throw new Error(
-        `El lote con ID ${datos.detalleOrdenId} ya tiene una Receta Técnica registrada.`
-      );
+      throw new Error(`El lote con ID ${datos.detalleOrdenId} ya tiene una Receta Técnica registrada.`);
     }
 
-    // Verificar que todos los colorantes existen en el catálogo
+    // Verificar que todos los colorantes existen y construir mapa id→nombre
     const coloranteIds = datos.colorantes.map(c => c.coloranteId);
     const colorantesCatalogo = await prisma.coloranteCatalogo.findMany({
       where: { id: { in: coloranteIds } },
@@ -49,16 +253,15 @@ export const recetasService = {
     }
     const mapColorantes = new Map(colorantesCatalogo.map(c => [c.id, c.nombre]));
 
-    // Calcular valores derivados en el servidor
-    const litrosAgua = Math.round(datos.pesoRealKg * datos.relacionBano * 100) / 100;
+    // Calcular valores derivados en servidor (evita que el cliente los falsifique)
+    const litrosAgua     = Math.round(datos.pesoRealKg * datos.relacionBano * 100) / 100;
     const { nivel: nivelIntensidad } = calcularNivelIntensidad(datos.colorantes);
 
-    // Obtener código de fibra para el motor químico
+    // Obtener código de fibra para el Motor Químico
     const fibraRecord = await prisma.composicionFibra.findUniqueOrThrow({
       where: { id: composicionFibraId },
     });
 
-    // Ejecutar Motor Químico inicial
     const motorQuimico = ejecutarMotorQuimico({
       composicion:  fibraRecord.codigo,
       pesoRealKg:   datos.pesoRealKg,
@@ -66,36 +269,28 @@ export const recetasService = {
       colorantes:   datos.colorantes,
     });
 
-    // Generar primera iteración
+    // Generar primera iteración en el historial
     const primeraIteracion = {
       iteracion: 1,
-      fecha: new Date().toISOString(),
-      colorantes: datos.colorantes.map((c) => {
-        const nombre = mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`;
-        const gramos = Math.round(datos.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100;
-        return {
-          coloranteId: c.coloranteId,
-          nombreColorante: nombre,
-          porcentaje: c.porcentaje,
-          gramos,
-        };
-      }),
+      fecha:     new Date().toISOString(),
+      colorantes: datos.colorantes.map((c) => ({
+        coloranteId:     c.coloranteId,
+        nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
+        porcentaje:      c.porcentaje,
+        gramos:          Math.round(datos.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100,
+      })),
       observacion: 'Primera formulación inicial.',
     };
 
-    // Transacción atómica
     const recetaCreada = await prisma.$transaction(async (tx) => {
-      // Buscar o crear artículo por su nombre (texto libre)
+      // Buscar o crear artículo por nombre (texto libre, insensible a mayúsculas)
       const nombreArticulo = datos.articuloNombre.trim();
       let articulo = await tx.articuloTextil.findFirst({
         where: { nombre: { equals: nombreArticulo, mode: 'insensitive' } },
       });
       if (!articulo) {
         articulo = await tx.articuloTextil.create({
-          data: {
-            nombre: nombreArticulo,
-            descripcion: 'Creado dinámicamente desde Lab',
-          },
+          data: { nombre: nombreArticulo, descripcion: 'Creado dinámicamente desde Lab.' },
         });
       }
 
@@ -124,114 +319,34 @@ export const recetasService = {
         })),
       });
 
-      // --- AUTOMATIZACIÓN 1 ---
-      const det = await tx.detalleOrden.findUnique({
-        where: { id: datos.detalleOrdenId },
-        select: { ordenCompraId: true }
-      });
-
-      console.log(`[crearReceta] datos.detalleOrdenId: ${datos.detalleOrdenId}, det: ${JSON.stringify(det)}`);
-
-      if (det) {
-        const OCId = det.ordenCompraId;
-        console.log(`[crearReceta] Resolviendo ordenCompraId: ${OCId}`);
-
-        const oc = await tx.ordenCompra.findUnique({
-          where: { id: OCId },
-          include: { estado: true }
-        });
-
-        console.log(`[crearReceta] OC actual: ${JSON.stringify(oc)}`);
-
-        if (oc && oc.estado.codigo === 'PENDIENTE') {
-          const estadoEnProceso = await tx.estadoOrden.findUnique({
-            where: { codigo: 'EN_PROCESO' }
-          });
-          const estadoPendiente = await tx.estadoOrden.findUnique({
-            where: { codigo: 'PENDIENTE' }
-          });
-
-          console.log(`[crearReceta] estadoEnProceso ID: ${estadoEnProceso?.id}, estadoPendiente ID: ${estadoPendiente?.id}`);
-
-          if (estadoEnProceso && estadoPendiente) {
-            console.log(`[crearReceta] Transicionando OC ${OCId} de PENDIENTE a EN_PROCESO`);
-            await tx.ordenCompra.update({
-              where: { id: OCId },
-              data: { estadoId: estadoEnProceso.id }
-            });
-
-            await tx.bitacoraEstado.create({
-              data: {
-                ordenCompraId: OCId,
-                estadoAnteriorId: estadoPendiente.id,
-                estadoNuevoId: estadoEnProceso.id,
-                observacion: "Primera receta técnica registrada en el laboratorio"
-              }
-            });
-            console.log(`[crearReceta] Bitácora registrada para OC ${OCId} EN_PROCESO.`);
-          }
-        }
-      } else {
-        console.error(`[crearReceta] Error: No se pudo resolver detalleOrdenId: ${datos.detalleOrdenId}`);
-      }
-      // -------------------------
+      // Automatización: OC pasa de PENDIENTE a EN_PROCESO al registrar la primera receta
+      await transicionarOCaEnProceso(tx, datos.detalleOrdenId);
 
       return tx.recetaTecnica.findUniqueOrThrow({
-        where: { id: receta.id },
-        include: {
-          colorantes:      { orderBy: { createdAt: 'asc' } },
-          composicionFibra: true,
-          articulo:         true,
-        },
+        where:   { id: receta.id },
+        include: INCLUDE_SIN_COLORANTE_NOMBRE,
       });
     });
 
-    return {
-      receta: {
-        id:                    recetaCreada.id,
-        detalleOrdenId:        recetaCreada.detalleOrdenId,
-        pesoRealKg:            recetaCreada.pesoRealKg,
-        articuloId:            recetaCreada.articuloId,
-        articulo:              recetaCreada.articulo.nombre,
-        composicionFibra:      recetaCreada.composicionFibra.codigo,
-        composicionFibraLabel: recetaCreada.composicionFibra.etiqueta,
-        relacionBano:          recetaCreada.relacionBano,
-        litrosAgua:            recetaCreada.litrosAgua,
-        descripcionColor:      recetaCreada.descripcionColor,
-        nivelIntensidad:       recetaCreada.nivelIntensidad,
-        observacionesTecnicas: recetaCreada.observacionesTecnicas,
-        estado:                recetaCreada.estado,
-        secuenciaBanos:        recetaCreada.secuenciaBanos,
-        iteraciones:           recetaCreada.iteraciones,
-        colorHex:              recetaCreada.colorHex,
-        colorRgb:              recetaCreada.colorRgb,
-        colorMiniatura:        recetaCreada.colorMiniatura,
-        createdAt:             recetaCreada.createdAt.toISOString(),
-        colorantes:            recetaCreada.colorantes.map((c) => ({
-          coloranteId:     c.coloranteId,
-          nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
-          porcentaje:      c.porcentaje,
-        })),
-      },
-      motorQuimico,
-    };
+    return mapRecetaToDTO(recetaCreada as RecetaConRelaciones, motorQuimico, mapColorantes);
   },
 
   // ---------------------------------------------------------------------------
-  // REGISTRAR ITERACIÓN (AJUSTE)
+  // REGISTRAR ITERACIÓN — Ajuste de colorantes sobre una receta existente
+  // Reemplaza los colorantes actuales y agrega una entrada al historial.
+  // La receta pasa al estado PROCESO.
   // ---------------------------------------------------------------------------
-  async registrarIteracion(id: number, datos: { colorantes: ColoranteInput[]; observaciones: string }): Promise<RecetaResponse> {
+  async registrarIteracion(
+    id: number,
+    datos: { colorantes: ColoranteInput[]; observaciones: string }
+  ): Promise<RecetaResponse> {
     const receta = await prisma.recetaTecnica.findUniqueOrThrow({
-      where: { id },
-      include: {
-        colorantes: true,
-        composicionFibra: true,
-        articulo: true,
-      },
+      where:   { id },
+      include: INCLUDE_SIN_COLORANTE_NOMBRE,
     });
 
-    // Validar existencia de colorantes
-    const coloranteIds = datos.colorantes.map(c => c.coloranteId);
+    // Verificar colorantes y construir mapa id→nombre
+    const coloranteIds      = datos.colorantes.map(c => c.coloranteId);
     const colorantesCatalogo = await prisma.coloranteCatalogo.findMany({
       where: { id: { in: coloranteIds } },
     });
@@ -240,36 +355,27 @@ export const recetasService = {
     }
     const mapColorantes = new Map(colorantesCatalogo.map(c => [c.id, c.nombre]));
 
-    // Nueva iteración
-    const iteracionesExistentes = Array.isArray(receta.iteraciones) ? (receta.iteraciones as any[]) : [];
+    // Construir nueva iteración
+    const iteracionesExistentes = Array.isArray(receta.iteraciones)
+      ? (receta.iteraciones as any[])
+      : [];
     const numeroIteracion = iteracionesExistentes.length + 1;
 
     const nuevaIteracion = {
       iteracion: numeroIteracion,
-      fecha: new Date().toISOString(),
-      colorantes: datos.colorantes.map((c) => {
-        const nombre = mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`;
-        const gramos = Math.round(receta.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100;
-        return {
-          coloranteId: c.coloranteId,
-          nombreColorante: nombre,
-          porcentaje: c.porcentaje,
-          gramos,
-        };
-      }),
+      fecha:     new Date().toISOString(),
+      colorantes: datos.colorantes.map((c) => ({
+        coloranteId:     c.coloranteId,
+        nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
+        porcentaje:      c.porcentaje,
+        gramos: Math.round(receta.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100,
+      })),
       observacion: datos.observaciones || `Ajuste en iteración ${numeroIteracion}.`,
     };
 
-    const iteracionesActualizadas = [...iteracionesExistentes, nuevaIteracion];
-
-    // Transacción para actualizar
     const recetaActualizada = await prisma.$transaction(async (tx) => {
-      // 1. Borrar colorantes viejos
-      await tx.coloranteFormula.deleteMany({
-        where: { recetaTecnicaId: id },
-      });
-
-      // 2. Insertar colorantes nuevos
+      // Reemplazar colorantes: borrar → insertar
+      await tx.coloranteFormula.deleteMany({ where: { recetaTecnicaId: id } });
       await tx.coloranteFormula.createMany({
         data: datos.colorantes.map((c) => ({
           recetaTecnicaId: id,
@@ -278,205 +384,55 @@ export const recetasService = {
         })),
       });
 
-      // 3. Actualizar receta (mueve a PROCESO)
+      // Actualizar receta: agrega iteración al historial y mueve a PROCESO
       return tx.recetaTecnica.update({
-        where: { id },
-        data: {
-          estado: 'PROCESO',
-          iteraciones: iteracionesActualizadas as any,
-        },
-        include: {
-          colorantes: { orderBy: { createdAt: 'asc' } },
-          composicionFibra: true,
-          articulo: true,
-        },
+        where:   { id },
+        data:    { estado: 'PROCESO', iteraciones: [...iteracionesExistentes, nuevaIteracion] as any },
+        include: INCLUDE_SIN_COLORANTE_NOMBRE,
       });
     });
 
-    const motorQuimico = ejecutarMotorQuimico({
-      composicion:  recetaActualizada.composicionFibra.codigo,
-      pesoRealKg:   recetaActualizada.pesoRealKg,
-      relacionBano: recetaActualizada.relacionBano,
-      colorantes:   recetaActualizada.colorantes.map((c) => ({
-        coloranteId: c.coloranteId,
-        porcentaje:  c.porcentaje,
-      })),
-    });
-
-    return {
-      receta: {
-        id:                    recetaActualizada.id,
-        detalleOrdenId:        recetaActualizada.detalleOrdenId,
-        pesoRealKg:            recetaActualizada.pesoRealKg,
-        articuloId:            recetaActualizada.articuloId,
-        articulo:              recetaActualizada.articulo.nombre,
-        composicionFibra:      recetaActualizada.composicionFibra.codigo,
-        composicionFibraLabel: recetaActualizada.composicionFibra.etiqueta,
-        relacionBano:          recetaActualizada.relacionBano,
-        litrosAgua:            recetaActualizada.litrosAgua,
-        descripcionColor:      recetaActualizada.descripcionColor,
-        nivelIntensidad:       recetaActualizada.nivelIntensidad,
-        observacionesTecnicas: recetaActualizada.observacionesTecnicas,
-        estado:                recetaActualizada.estado,
-        secuenciaBanos:        recetaActualizada.secuenciaBanos,
-        iteraciones:           recetaActualizada.iteraciones,
-        colorHex:              recetaActualizada.colorHex,
-        colorRgb:              recetaActualizada.colorRgb,
-        colorMiniatura:        recetaActualizada.colorMiniatura,
-        createdAt:             recetaActualizada.createdAt.toISOString(),
-        colorantes:            recetaActualizada.colorantes.map((c) => ({
-          coloranteId:     c.coloranteId,
-          nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
-          porcentaje:      c.porcentaje,
-        })),
-      },
-      motorQuimico,
-    };
+    const motorQuimico = buildMotorQuimico(recetaActualizada as RecetaConRelaciones);
+    return mapRecetaToDTO(recetaActualizada as RecetaConRelaciones, motorQuimico, mapColorantes);
   },
 
   // ---------------------------------------------------------------------------
-  // APROBAR RECETA (COLOR APROBADO)
+  // APROBAR RECETA — Marca el color como aprobado definitivo
+  // 1. Cambia estado de la receta a APROBADO
+  // 2. Automatiza: si TODOS los lotes de la OC están aprobados → COMPLETADA
   // ---------------------------------------------------------------------------
   async aprobarReceta(id: number): Promise<RecetaResponse> {
     const recetaActualizada = await prisma.$transaction(async (tx) => {
       const receta = await tx.recetaTecnica.update({
-        where: { id },
-        data: {
-          estado: 'APROBADO',
-        },
-        include: {
-          colorantes: { orderBy: { createdAt: 'asc' }, include: { colorante: true } },
-          composicionFibra: true,
-          articulo: true,
-        },
+        where:   { id },
+        data:    { estado: 'APROBADO' },
+        include: INCLUDE_CON_COLORANTE_NOMBRE,
       });
 
-      console.log(`[aprobarReceta] Receta ${id} aprobada en DB. detalleOrdenId: ${receta.detalleOrdenId}`);
-
-      // --- AUTOMATIZACIÓN 2 ---
-      const det = await tx.detalleOrden.findUnique({
-        where: { id: receta.detalleOrdenId },
-        select: { ordenCompraId: true }
-      });
-
-      if (det) {
-        const OCId = det.ordenCompraId;
-        console.log(`[aprobarReceta] Resolviendo ordenCompraId: ${OCId}`);
-
-        const totalLotes = await tx.detalleOrden.count({
-          where: { ordenCompraId: OCId }
-        });
-        const lotesAprobados = await tx.detalleOrden.count({
-          where: {
-            ordenCompraId: OCId,
-            recetaTecnica: {
-              estado: 'APROBADO'
-            }
-          }
-        });
-
-        console.log(`[aprobarReceta] OCId: ${OCId} - totalLotes: ${totalLotes}, lotesAprobados: ${lotesAprobados}`);
-
-        if (totalLotes > 0 && lotesAprobados === totalLotes) {
-          const estadoEnProceso = await tx.estadoOrden.findUnique({
-            where: { codigo: 'EN_PROCESO' }
-          });
-          const estadoCompletada = await tx.estadoOrden.findUnique({
-            where: { codigo: 'COMPLETADA' }
-          });
-
-          console.log(`[aprobarReceta] estadoEnProceso ID: ${estadoEnProceso?.id}, estadoCompletada ID: ${estadoCompletada?.id}`);
-
-          if (estadoEnProceso && estadoCompletada) {
-            const oc = await tx.ordenCompra.findUnique({
-              where: { id: OCId },
-              select: { estadoId: true }
-            });
-            if (oc && oc.estadoId !== estadoCompletada.id) {
-              console.log(`[aprobarReceta] Transicionando OC ${OCId} a COMPLETADA`);
-              await tx.ordenCompra.update({
-                where: { id: OCId },
-                data: { estadoId: estadoCompletada.id }
-              });
-              await tx.bitacoraEstado.create({
-                data: {
-                  ordenCompraId: OCId,
-                  estadoAnteriorId: estadoEnProceso.id,
-                  estadoNuevoId: estadoCompletada.id,
-                  observacion: "Todos los lotes de la OC fueron aprobados en Lab Histórico"
-                }
-              });
-              console.log(`[aprobarReceta] Bitácora registrada para OC ${OCId} COMPLETADA.`);
-            }
-          }
-        }
-      } else {
-        console.error(`[aprobarReceta] Error: No se pudo resolver detalleOrdenId: ${receta.detalleOrdenId}`);
-      }
-      // -------------------------
+      // Automatización: OC pasa a COMPLETADA si todos los lotes están aprobados
+      await transicionarOCaCompletada(tx, receta.detalleOrdenId);
 
       return receta;
     });
 
-    const motorQuimico = ejecutarMotorQuimico({
-      composicion:  recetaActualizada.composicionFibra.codigo,
-      pesoRealKg:   recetaActualizada.pesoRealKg,
-      relacionBano: recetaActualizada.relacionBano,
-      colorantes:   recetaActualizada.colorantes.map((c) => ({
-        coloranteId: c.coloranteId,
-        porcentaje:  c.porcentaje,
-      })),
-    });
-
-    const mapColorantes = new Map(recetaActualizada.colorantes.map(c => [c.coloranteId, c.colorante.nombre]));
-
-    return {
-      receta: {
-        id:                    recetaActualizada.id,
-        detalleOrdenId:        recetaActualizada.detalleOrdenId,
-        pesoRealKg:            recetaActualizada.pesoRealKg,
-        articuloId:            recetaActualizada.articuloId,
-        articulo:              recetaActualizada.articulo.nombre,
-        composicionFibra:      recetaActualizada.composicionFibra.codigo,
-        composicionFibraLabel: recetaActualizada.composicionFibra.etiqueta,
-        relacionBano:          recetaActualizada.relacionBano,
-        litrosAgua:            recetaActualizada.litrosAgua,
-        descripcionColor:      recetaActualizada.descripcionColor,
-        nivelIntensidad:       recetaActualizada.nivelIntensidad,
-        observacionesTecnicas: recetaActualizada.observacionesTecnicas,
-        estado:                recetaActualizada.estado,
-        secuenciaBanos:        recetaActualizada.secuenciaBanos,
-        iteraciones:           recetaActualizada.iteraciones,
-        colorHex:              recetaActualizada.colorHex,
-        colorRgb:              recetaActualizada.colorRgb,
-        colorMiniatura:        recetaActualizada.colorMiniatura,
-        createdAt:             recetaActualizada.createdAt.toISOString(),
-        colorantes:            recetaActualizada.colorantes.map((c) => ({
-          coloranteId:     c.coloranteId,
-          nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
-          porcentaje:      c.porcentaje,
-        })),
-      },
-      motorQuimico,
-    };
+    const motorQuimico = buildMotorQuimico(recetaActualizada as RecetaConRelaciones);
+    return mapRecetaToDTO(recetaActualizada as RecetaConRelaciones, motorQuimico);
   },
 
   // ---------------------------------------------------------------------------
-  // OBTENER TODAS LAS RECETAS (CON FILTRADO POR ESTADO)
+  // OBTENER TODAS LAS RECETAS — Con filtro de estado opcional
+  // Incluye datos del lote (OC + cliente) para mostrar contexto en el tablero.
   // ---------------------------------------------------------------------------
-  async obtenerRecetas(estado?: string) {
-    const whereClause = estado ? { estado } : {};
+  async obtenerRecetas(estado?: string): Promise<RecetaListDTO[]> {
     const recetas = await prisma.recetaTecnica.findMany({
-      where: whereClause,
+      where:   estado ? { estado } : {},
       orderBy: { createdAt: 'desc' },
       include: {
         colorantes:       { orderBy: { createdAt: 'asc' }, include: { colorante: true } },
         composicionFibra: true,
         articulo:         true,
         detalleOrden: {
-          include: {
-            ordenCompra: { include: { cliente: true } },
-          },
+          include: { ordenCompra: { include: { cliente: true } } },
         },
       },
     });
@@ -517,116 +473,35 @@ export const recetasService = {
   },
 
   // ---------------------------------------------------------------------------
-  // OBTENER RECETA POR ID
+  // OBTENER RECETA POR ID — Con re-ejecución del Motor Químico
+  // Recalcula la secuencia de baños para asegurar consistencia.
   // ---------------------------------------------------------------------------
   async obtenerRecetaPorId(id: number): Promise<RecetaResponse | null> {
     const receta = await prisma.recetaTecnica.findUnique({
-      where: { id },
-      include: {
-        colorantes:       { orderBy: { createdAt: 'asc' }, include: { colorante: true } },
-        composicionFibra: true,
-        articulo:         true,
-      },
+      where:   { id },
+      include: INCLUDE_CON_COLORANTE_NOMBRE,
     });
-
     if (!receta) return null;
 
-    const motorQuimico = ejecutarMotorQuimico({
-      composicion:  receta.composicionFibra.codigo,
-      pesoRealKg:   receta.pesoRealKg,
-      relacionBano: receta.relacionBano,
-      colorantes:   receta.colorantes.map((c) => ({
-        coloranteId: c.coloranteId,
-        porcentaje:  c.porcentaje,
-      })),
-    });
-
-    return {
-      receta: {
-        id:                    receta.id,
-        detalleOrdenId:        receta.detalleOrdenId,
-        pesoRealKg:            receta.pesoRealKg,
-        articuloId:            receta.articuloId,
-        articulo:              receta.articulo.nombre,
-        composicionFibra:      receta.composicionFibra.codigo,
-        composicionFibraLabel: receta.composicionFibra.etiqueta,
-        relacionBano:          receta.relacionBano,
-        litrosAgua:            receta.litrosAgua,
-        descripcionColor:      receta.descripcionColor,
-        nivelIntensidad:       receta.nivelIntensidad,
-        observacionesTecnicas: receta.observacionesTecnicas,
-        estado:                receta.estado,
-        secuenciaBanos:        receta.secuenciaBanos,
-        iteraciones:           receta.iteraciones,
-        colorHex:              receta.colorHex,
-        colorRgb:              receta.colorRgb,
-        colorMiniatura:        receta.colorMiniatura,
-        createdAt:             receta.createdAt.toISOString(),
-        colorantes:            receta.colorantes.map((c) => ({
-          coloranteId:     c.coloranteId,
-          nombreColorante: c.colorante.nombre,
-          porcentaje:      c.porcentaje,
-        })),
-      },
-      motorQuimico,
-    };
+    const motorQuimico = buildMotorQuimico(receta as RecetaConRelaciones);
+    return mapRecetaToDTO(receta as RecetaConRelaciones, motorQuimico);
   },
 
-  async guardarColor(id: number, datos: { colorHex: string | null; colorRgb: any; colorMiniatura: string | null }): Promise<RecetaResponse> {
+  // ---------------------------------------------------------------------------
+  // GUARDAR COLOR — Persiste resultado del análisis de color por imagen
+  // Guarda colorHex, colorRgb y miniatura en base64 en la receta.
+  // ---------------------------------------------------------------------------
+  async guardarColor(
+    id: number,
+    datos: { colorHex: string | null; colorRgb: any; colorMiniatura: string | null }
+  ): Promise<RecetaResponse> {
     const recetaActualizada = await prisma.recetaTecnica.update({
-      where: { id },
-      data: {
-        colorHex: datos.colorHex,
-        colorRgb: datos.colorRgb,
-        colorMiniatura: datos.colorMiniatura,
-      },
-      include: {
-        colorantes: { orderBy: { createdAt: 'asc' }, include: { colorante: true } },
-        composicionFibra: true,
-        articulo: true,
-      },
+      where:   { id },
+      data:    { colorHex: datos.colorHex, colorRgb: datos.colorRgb, colorMiniatura: datos.colorMiniatura },
+      include: INCLUDE_CON_COLORANTE_NOMBRE,
     });
 
-    const motorQuimico = ejecutarMotorQuimico({
-      composicion:  recetaActualizada.composicionFibra.codigo,
-      pesoRealKg:   recetaActualizada.pesoRealKg,
-      relacionBano: recetaActualizada.relacionBano,
-      colorantes:   recetaActualizada.colorantes.map((c) => ({
-        coloranteId: c.coloranteId,
-        porcentaje:  c.porcentaje,
-      })),
-    });
-
-    const mapColorantes = new Map(recetaActualizada.colorantes.map(c => [c.coloranteId, c.colorante.nombre]));
-
-    return {
-      receta: {
-        id:                    recetaActualizada.id,
-        detalleOrdenId:        recetaActualizada.detalleOrdenId,
-        pesoRealKg:            recetaActualizada.pesoRealKg,
-        articuloId:            recetaActualizada.articuloId,
-        articulo:              recetaActualizada.articulo.nombre,
-        composicionFibra:      recetaActualizada.composicionFibra.codigo,
-        composicionFibraLabel: recetaActualizada.composicionFibra.etiqueta,
-        relacionBano:          recetaActualizada.relacionBano,
-        litrosAgua:            recetaActualizada.litrosAgua,
-        descripcionColor:      recetaActualizada.descripcionColor,
-        nivelIntensidad:       recetaActualizada.nivelIntensidad,
-        observacionesTecnicas: recetaActualizada.observacionesTecnicas,
-        estado:                recetaActualizada.estado,
-        secuenciaBanos:        recetaActualizada.secuenciaBanos,
-        iteraciones:           recetaActualizada.iteraciones,
-        colorHex:              recetaActualizada.colorHex,
-        colorRgb:              recetaActualizada.colorRgb,
-        colorMiniatura:        recetaActualizada.colorMiniatura,
-        createdAt:             recetaActualizada.createdAt.toISOString(),
-        colorantes:            recetaActualizada.colorantes.map((c) => ({
-          coloranteId:     c.coloranteId,
-          nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
-          porcentaje:      c.porcentaje,
-        })),
-      },
-      motorQuimico,
-    };
+    const motorQuimico = buildMotorQuimico(recetaActualizada as RecetaConRelaciones);
+    return mapRecetaToDTO(recetaActualizada as RecetaConRelaciones, motorQuimico);
   },
 };

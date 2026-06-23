@@ -1,3 +1,9 @@
+// =============================================================================
+// SERVITEX — Componente: LotesProceso
+// Vista del módulo Lab que lista las recetas técnicas activas
+// (estado FORMULACION o PROCESO). Permite iniciar un ajuste de colorantes
+// desde cualquier lote, buscando por color, artículo, cliente o N° de OC.
+// =============================================================================
 import React, { useState, useEffect } from 'react';
 import { obtenerRecetas } from '../services/recetasApi';
 import type { RecetaListItem } from '../types/recetas';

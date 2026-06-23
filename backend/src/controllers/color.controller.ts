@@ -1,3 +1,12 @@
+// =============================================================================
+// SERVITEX — Controlador de Análisis de Color (Módulo 2.5)
+// POST /api/color/analizar — Recibe una imagen y coordenadas de área seleccionada.
+// Usa sharp para:
+//   1. Extraer la región de la imagen (crop)
+//   2. Calcular el RGB promedio del área
+//   3. Convertir el promedio a código HEX
+//   4. Generar una miniatura de 200×200px en base64
+// =============================================================================
 import { Request, Response } from 'express';
 import sharp from 'sharp';
 
