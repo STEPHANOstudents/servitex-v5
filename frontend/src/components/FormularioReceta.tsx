@@ -585,7 +585,7 @@ const FormularioReceta: React.FC<FormularioRecetaProps> = ({
               { label:'Relación de Baño',   value:`1 : ${relacionBano}` },
               { label:'Artículo',           value:articuloNombre },
               { label:'Color a Reproducir', value:descripcionColor },
-            ].reduce<JSX.Element[]>((acc, item, i, arr) => {
+            ].reduce<React.ReactNode[]>((acc, item, i, arr) => {
               acc.push(
                 <div key={item.label} style={{ display:'flex', flexDirection:'column', gap:'2px' }}>
                   <span style={{ fontSize:'11px', color:'var(--text-muted)', textTransform:'uppercase', fontWeight:600 }}>{item.label}</span>
