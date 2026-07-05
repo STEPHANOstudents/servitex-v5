@@ -1,0 +1,350 @@
+// =============================================================================
+// SERVITEX — Schema de Base de Datos Normalizado (Prisma ORM)
+// Versión: 3.0.0 — 20 Tablas Normalizadas hasta 3FN
+// Catálogos: tipos_cliente, estados_orden, composiciones_fibra,
+//            articulos_textiles, unidades_medida, colorantes_catalogo,
+//            colorantes_plantilla, tipos_incidencia, fases_proceso, tipos_reporte
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================================
+// CATÁLOGOS (Tablas 11–20) — Solo inserción, nunca modificación por el usuario
+// =============================================================================
+
+/// CATÁLOGO 1: Tipos de cliente válidos en el sistema.
+model TipoCliente {
+  id          Int       @id @default(autoincrement())
+  codigo      String    @unique @db.VarChar(30)
+  etiqueta    String    @db.VarChar(100)
+  descripcion String?   @db.VarChar(300)
+
+  clientes    Cliente[]
+
+  @@map("tipos_cliente")
+}
+
+/// CATÁLOGO 2: Estados posibles del ciclo de vida de una Orden de Compra.
+model EstadoOrden {
+  id              Int              @id @default(autoincrement())
+  codigo          String           @unique @db.VarChar(30)
+  etiqueta        String           @db.VarChar(100)
+  descripcion     String?          @db.VarChar(300)
+  esEstadoFinal   Boolean          @default(false)
+
+  ordenes         OrdenCompra[]
+  bitacoraAntes   BitacoraEstado[] @relation("EstadoAnterior")
+  bitacoraDespues BitacoraEstado[] @relation("EstadoNuevo")
+
+  @@map("estados_orden")
+}
+
+/// CATÁLOGO 3: Composiciones de fibra textil — determina la ruta del Motor Químico.
+model ComposicionFibra {
+  id               Int               @id @default(autoincrement())
+  codigo           String            @unique @db.VarChar(50)
+  etiqueta         String            @db.VarChar(150)
+  totalBanos       Int
+  descripcionRuta  String?           @db.VarChar(300)
+
+  recetas          RecetaTecnica[]
+  plantillas       PlantillaReceta[]
+
+  @@map("composiciones_fibra")
+}
+
+/// CATÁLOGO 4: Artículos textiles procesables en el taller.
+model ArticuloTextil {
+  id          Int             @id @default(autoincrement())
+  nombre      String          @unique @db.VarChar(150)
+  descripcion String?         @db.VarChar(300)
+  activo      Boolean         @default(true)
+
+  detalles    DetalleOrden[]
+  recetas     RecetaTecnica[]
+
+  @@map("articulos_textiles")
+}
+
+/// CATÁLOGO 5: Unidades de medida para los lotes de teñido.
+model UnidadMedida {
+  id       Int            @id @default(autoincrement())
+  codigo   String         @unique @db.VarChar(20)
+  simbolo  String         @db.VarChar(10)
+  etiqueta String         @db.VarChar(100)
+
+  detalles DetalleOrden[]
+
+  @@map("unidades_medida")
+}
+
+/// CATÁLOGO 6: Catálogo maestro de colorantes disponibles en el taller.
+model ColoranteCatalogo {
+  id                 Int                  @id @default(autoincrement())
+  nombre             String               @unique @db.VarChar(200)
+  tipoColorante      String               @default("REACTIVO") @db.VarChar(50)
+  activo             Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+
+  usosEnRecetas      ColoranteFormula[]
+  usosEnPlantillas   ColorantePlantilla[]
+
+  @@map("colorantes_catalogo")
+}
+
+/// CATÁLOGO 7: Tipos de incidencia que pueden ocurrir durante el proceso de teñido.
+model TipoIncidencia {
+  id          Int                 @id @default(autoincrement())
+  codigo      String              @unique @db.VarChar(30)
+  etiqueta    String              @db.VarChar(150)
+  descripcion String?             @db.VarChar(300)
+
+  incidencias IncidenciaProceso[]
+
+  @@map("tipos_incidencia")
+}
+
+/// CATÁLOGO 8: Fases del proceso de teñido generadas por el Motor Químico.
+model FaseProceso {
+  id          Int     @id @default(autoincrement())
+  codigo      String  @unique @db.VarChar(30)
+  etiqueta    String  @db.VarChar(150)
+  orden       Int
+  descripcion String? @db.VarChar(300)
+
+  @@map("fases_proceso")
+}
+
+/// CATÁLOGO 9: Tipos de reporte disponibles en el módulo de Reportes Generales.
+model TipoReporte {
+  id          Int               @id @default(autoincrement())
+  codigo      String            @unique @db.VarChar(50)
+  etiqueta    String            @db.VarChar(200)
+  descripcion String?           @db.VarChar(300)
+
+  reportes    ReporteGenerado[]
+
+  @@map("tipos_reporte")
+}
+
+// =============================================================================
+// TABLAS TRANSACCIONALES (1–5) — Módulos de OC y Recetas
+// =============================================================================
+
+/// TABLA 1: Catálogo maestro de clientes. Reutilizable en múltiples órdenes.
+model Cliente {
+  id            Int         @id @default(autoincrement())
+  nombre        String      @db.VarChar(200)
+  tipoClienteId Int
+  tipoCliente   TipoCliente @relation(fields: [tipoClienteId], references: [id])
+  ruc           String?     @unique @db.VarChar(11)
+  telefono      String?     @db.VarChar(15)
+  correo        String?     @db.VarChar(150)
+  direccion     String?     @db.VarChar(300)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  ordenes       OrdenCompra[]
+
+  @@unique([nombre, tipoClienteId], name: "nombre_tipoCliente")
+  @@map("clientes")
+}
+
+/// TABLA 2: Cabecera de cada pedido comercial.
+model OrdenCompra {
+  id            Int          @id @default(autoincrement())
+  numeroOC      String       @unique @db.VarChar(50)
+  clienteId     Int
+  cliente       Cliente      @relation(fields: [clienteId], references: [id])
+  estadoId      Int
+  estado        EstadoOrden  @relation(fields: [estadoId], references: [id])
+  observaciones String?      @db.Text
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  detalles      DetalleOrden[]
+  notaEntrega   NotaEntrega?
+  bitacora      BitacoraEstado[]
+
+  @@map("ordenes_compra")
+}
+
+/// TABLA 3: Cada lote de teñido asociado a una OC.
+model DetalleOrden {
+  id              Int            @id @default(autoincrement())
+  ordenCompraId   Int
+  ordenCompra     OrdenCompra    @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  articuloId      Int
+  articulo        ArticuloTextil @relation(fields: [articuloId], references: [id])
+  unidadMedidaId  Int
+  unidadMedida    UnidadMedida   @relation(fields: [unidadMedidaId], references: [id])
+  cantidad        Float
+  colorSolicitado String         @db.VarChar(150)
+  precioPorMetro  Float
+  total           Float
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  recetaTecnica   RecetaTecnica?
+  incidencias     IncidenciaProceso[]
+
+  @@map("detalles_orden")
+}
+
+/// TABLA 4: Formulario técnico de laboratorio para un lote. Relación 1:1 con DetalleOrden.
+model RecetaTecnica {
+  id                    Int              @id @default(autoincrement())
+  detalleOrdenId        Int              @unique
+  detalleOrden          DetalleOrden     @relation(fields: [detalleOrdenId], references: [id], onDelete: Cascade)
+  plantillaId           Int?
+  plantilla             PlantillaReceta? @relation(fields: [plantillaId], references: [id], onDelete: SetNull)
+  articuloId            Int
+  articulo              ArticuloTextil   @relation(fields: [articuloId], references: [id])
+  composicionFibraId    Int
+  composicionFibra      ComposicionFibra @relation(fields: [composicionFibraId], references: [id])
+  pesoRealKg            Float
+  relacionBano          Float
+  litrosAgua            Float
+  descripcionColor      String           @db.VarChar(200)
+  nivelIntensidad       Float
+  observacionesTecnicas String?          @db.Text
+  estado                String           @default("FORMULACION") @db.VarChar(30)
+  secuenciaBanos        Json?
+  iteraciones           Json?            @default("[]")
+  colorHex              String?          @db.VarChar(7)
+  colorRgb              Json?
+  colorMiniatura        String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  colorantes            ColoranteFormula[]
+
+  @@map("recetas_tecnicas")
+}
+
+/// TABLA 5: Cada colorante individual en la fórmula de una receta.
+model ColoranteFormula {
+  id                Int                @id @default(autoincrement())
+  recetaTecnicaId   Int
+  recetaTecnica     RecetaTecnica      @relation(fields: [recetaTecnicaId], references: [id], onDelete: Cascade)
+  coloranteId       Int
+  colorante         ColoranteCatalogo  @relation(fields: [coloranteId], references: [id])
+  porcentaje        Float
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@map("colorantes_formula")
+}
+
+// =============================================================================
+// TABLAS OPERACIONALES (6–10) — Módulos de Operaciones e Inteligencia
+// =============================================================================
+
+/// TABLA 6: Registro de entrega de una OC al cliente. Relación 1:1 con OrdenCompra.
+model NotaEntrega {
+  id              Int         @id @default(autoincrement())
+  ordenCompraId   Int         @unique
+  ordenCompra     OrdenCompra @relation(fields: [ordenCompraId], references: [id])
+  estado          String      @default("PENDIENTE") @db.VarChar(20)
+  receptorNombre  String      @db.VarChar(200)
+  fechaEntrega    DateTime?
+  observaciones   String?     @db.Text
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@map("notas_entrega")
+}
+
+/// TABLA 7: Log inmutable de cambios de estado de una OC. Solo INSERT.
+model BitacoraEstado {
+  id                Int         @id @default(autoincrement())
+  ordenCompraId     Int
+  ordenCompra       OrdenCompra @relation(fields: [ordenCompraId], references: [id], onDelete: Cascade)
+  estadoAnteriorId  Int
+  estadoAnterior    EstadoOrden @relation("EstadoAnterior", fields: [estadoAnteriorId], references: [id])
+  estadoNuevoId     Int
+  estadoNuevo       EstadoOrden @relation("EstadoNuevo", fields: [estadoNuevoId], references: [id])
+  observacion       String?     @db.VarChar(300)
+  changedAt         DateTime    @default(now())
+
+  @@map("bitacora_estados")
+}
+
+/// TABLA 8: Incidencias ocurridas durante el teñido de un lote.
+model IncidenciaProceso {
+  id               Int            @id @default(autoincrement())
+  detalleOrdenId   Int
+  detalleOrden     DetalleOrden   @relation(fields: [detalleOrdenId], references: [id], onDelete: Cascade)
+  tipoIncidenciaId Int
+  tipoIncidencia   TipoIncidencia @relation(fields: [tipoIncidenciaId], references: [id])
+  descripcion      String         @db.Text
+  accionTomada     String?        @db.Text
+  resuelta         Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@map("incidencias_proceso")
+}
+
+/// TABLA 9: Fórmulas de color reutilizables del laboratorio.
+model PlantillaReceta {
+  id                 Int                  @id @default(autoincrement())
+  nombrePlantilla    String               @unique @db.VarChar(200)
+  composicionFibraId Int
+  composicionFibra   ComposicionFibra     @relation(fields: [composicionFibraId], references: [id])
+  relacionBano       Float
+  descripcionColor   String               @db.VarChar(200)
+  activa             Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  colorantes         ColorantePlantilla[]
+  recetas            RecetaTecnica[]
+
+  @@map("plantillas_receta")
+}
+
+/// TABLA 17 (parte de TABLA 9): Colorantes que componen una plantilla de receta.
+model ColorantePlantilla {
+  id          Int               @id @default(autoincrement())
+  plantillaId Int
+  plantilla   PlantillaReceta   @relation(fields: [plantillaId], references: [id], onDelete: Cascade)
+  coloranteId Int
+  colorante   ColoranteCatalogo @relation(fields: [coloranteId], references: [id])
+  porcentaje  Float
+
+  @@map("colorantes_plantilla")
+}
+
+/// TABLA 10: Snapshot de reportes generados. Independiente — sin FK de salida.
+model ReporteGenerado {
+  id            Int         @id @default(autoincrement())
+  tipoReporteId Int
+  tipoReporte   TipoReporte @relation(fields: [tipoReporteId], references: [id])
+  fechaDesde    DateTime
+  fechaHasta    DateTime
+  resumenJson   Json
+  generadoEn    DateTime    @default(now())
+
+  @@map("reportes_generados")
+}
+
+/// TABLA 21: Usuarios del sistema — acceso y control de roles.
+model Usuario {
+  id           Int      @id @default(autoincrement())
+  nombre       String   @db.VarChar(150)
+  correo       String   @unique @db.VarChar(150)
+  passwordHash String   @db.VarChar(255)
+  rol          String   @default("OPERARIO") @db.VarChar(20) // "PROPIETARIA" | "OPERARIO"
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("usuarios")
+}

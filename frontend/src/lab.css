@@ -1,0 +1,728 @@
+/* =============================================================================
+   SERVITEX — Módulo Lab / Recetas Técnicas — Estilos adicionales
+   Se añaden al final de index.css (Entregable 2C)
+   ============================================================================= */
+
+/* =============================================================================
+   FILTROS DE FIBRA
+   ============================================================================= */
+.fiber-filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.fiber-filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.fiber-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fiber-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-base);
+  cursor: pointer;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  transition: all var(--transition);
+}
+
+.fiber-btn:hover {
+  background: var(--bg-glass-hover);
+  color: var(--text-primary);
+  border-color: var(--border-accent);
+}
+
+.fiber-btn.active {
+  background: rgba(20, 184, 166, 0.15);
+  color: var(--accent-teal);
+  border-color: var(--accent-teal);
+  box-shadow: 0 0 12px rgba(20, 184, 166, 0.15);
+}
+
+.fiber-btn.active-purple {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--accent-purple);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.15);
+}
+
+/* Sub-botones multifibra */
+.fiber-submenu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(139, 92, 246, 0.05);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: var(--radius-lg);
+  animation: fadeIn 0.15s ease;
+}
+
+.fiber-sub-btn {
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-base);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.fiber-sub-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--accent-purple);
+}
+
+.fiber-sub-btn.active {
+  background: rgba(139, 92, 246, 0.2);
+  color: var(--accent-purple);
+  border-color: var(--accent-purple);
+}
+
+/* Chip de intensidad calculada */
+.intensidad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: var(--radius-lg);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+  transition: all var(--transition);
+}
+
+.intensidad-chip.nivel-1 {
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+}
+.intensidad-chip.nivel-2 {
+  background: rgba(234, 179, 8, 0.08);
+  border-color: rgba(234, 179, 8, 0.25);
+  color: #facc15;
+}
+.intensidad-chip.nivel-3 {
+  background: rgba(249, 115, 22, 0.08);
+  border-color: rgba(249, 115, 22, 0.25);
+  color: #fb923c;
+}
+.intensidad-chip.nivel-4 {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #f87171;
+}
+
+/* =============================================================================
+   CATÁLOGO DE COLORANTES
+   ============================================================================= */
+.colorantes-catalogo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.colorante-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: all var(--transition);
+  cursor: pointer;
+}
+
+.colorante-item:hover {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-medium);
+}
+
+.colorante-item.checked {
+  background: rgba(20, 184, 166, 0.06);
+  border-color: rgba(20, 184, 166, 0.2);
+}
+
+.colorante-checkbox {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: var(--accent-teal);
+  cursor: pointer;
+}
+
+.colorante-nombre {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.colorante-etiqueta {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.3px;
+}
+
+.colorante-etiqueta.algodon {
+  background: rgba(20, 184, 166, 0.1);
+  color: var(--accent-teal);
+}
+.colorante-etiqueta.nylon {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--accent-purple);
+}
+.colorante-etiqueta.poliester {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-gold);
+}
+
+.colorante-porcentaje-input {
+  width: 80px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--accent-teal);
+  font-weight: 600;
+  outline: none;
+  text-align: center;
+  transition: border-color var(--transition);
+}
+
+.colorante-porcentaje-input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.1);
+}
+
+.colorante-porcentaje-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Selector de lote */
+.lote-selector-info {
+  padding: 10px 14px;
+  background: rgba(20, 184, 166, 0.05);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* =============================================================================
+   TABLERO DE RECETAS (Mini Cartas)
+   ============================================================================= */
+.tablero-recetas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.grid-cartas-receta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+/* Mini carta de receta */
+.mini-carta-receta {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  cursor: pointer;
+  transition: all var(--transition-slow);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.mini-carta-receta::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--transition-slow);
+}
+
+.mini-carta-receta:hover::before {
+  transform: scaleX(1);
+}
+
+.mini-carta-receta:hover {
+  border-color: rgba(139, 92, 246, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 0 20px rgba(139, 92, 246, 0.1);
+  background: var(--bg-card-hover);
+}
+
+.carta-fibra-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.carta-fibra-badge.algodon  { background: rgba(20,184,166,0.1); color: var(--accent-teal); border: 1px solid rgba(20,184,166,0.2); }
+.carta-fibra-badge.nylon    { background: rgba(139,92,246,0.1); color: var(--accent-purple); border: 1px solid rgba(139,92,246,0.2); }
+.carta-fibra-badge.poliester{ background: rgba(245,158,11,0.1); color: var(--accent-gold); border: 1px solid rgba(245,158,11,0.2); }
+.carta-fibra-badge.multi    { background: rgba(20,184,166,0.07); color: var(--text-secondary); border: 1px solid var(--border-medium); }
+
+.carta-color-nombre {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+  margin-bottom: 5px;
+  line-height: 1.3;
+}
+
+.carta-articulo {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.carta-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.carta-fecha {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.carta-nivel-chip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+/* =============================================================================
+   PAGINACIÓN
+   ============================================================================= */
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pag-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-glass);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-base);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+
+.pag-btn:hover:not(:disabled) {
+  background: var(--bg-glass-hover);
+  border-color: var(--border-accent);
+  color: var(--accent-teal);
+}
+
+.pag-btn.active {
+  background: rgba(20, 184, 166, 0.15);
+  border-color: var(--accent-teal);
+  color: var(--accent-teal);
+}
+
+.pag-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* =============================================================================
+   MODAL DETALLE RECETA (Cartilla Expandida)
+   ============================================================================= */
+.modal-receta-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 720px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.75), 0 0 0 1px rgba(139,92,246,0.1);
+  animation: slideUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+}
+
+.modal-receta-topbar {
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-teal));
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+/* Secciones del modal */
+.modal-seccion {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.modal-seccion:last-child {
+  border-bottom: none;
+}
+
+.modal-seccion-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Parámetros de origen */
+.params-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.param-item {
+  padding: 10px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.param-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.param-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.param-value.highlight {
+  color: var(--accent-teal);
+}
+
+/* Fórmula de colorantes */
+.formula-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formula-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.formula-colorante-nombre {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.formula-porcentaje {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--accent-teal);
+}
+
+/* Desglose de baños paso a paso */
+.banos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bano-item {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--transition);
+}
+
+.bano-item:hover {
+  border-color: var(--border-medium);
+}
+
+.bano-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.02);
+}
+
+.bano-numero {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-medium);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.bano-nombre {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.bano-fase-chip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  letter-spacing: 0.5px;
+}
+
+.bano-fase-chip.PREBLANQUEO  { background: rgba(139,92,246,0.1); color: var(--accent-purple); }
+.bano-fase-chip.TENIDO       { background: rgba(20,184,166,0.1); color: var(--accent-teal); }
+.bano-fase-chip.TENIDO_ALGODON{ background: rgba(20,184,166,0.1); color: var(--accent-teal); }
+.bano-fase-chip.TENIDO_SINTETICO{ background: rgba(245,158,11,0.1); color: var(--accent-gold); }
+.bano-fase-chip.TENIDO_NYLON { background: rgba(139,92,246,0.1); color: var(--accent-purple); }
+.bano-fase-chip.TENIDO_POLIESTER{ background: rgba(245,158,11,0.1); color: var(--accent-gold); }
+.bano-fase-chip.ACABADO      { background: rgba(34,197,94,0.1); color: #4ade80; }
+
+.bano-litros {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.bano-body {
+  padding: 8px 14px 12px;
+}
+
+.bano-enjuague-simple {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.producto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 12px;
+}
+
+.producto-row:last-child {
+  border-bottom: none;
+}
+
+.producto-nombre {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.producto-concentracion {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.producto-gramos {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--accent-teal);
+  flex-shrink: 0;
+  min-width: 70px;
+  text-align: right;
+}
+
+.bano-nota {
+  margin-top: 6px;
+  padding: 5px 10px;
+  background: rgba(139, 92, 246, 0.05);
+  border-left: 2px solid rgba(139, 92, 246, 0.3);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Resumen Total Consolidado */
+.resumen-consolidado {
+  background: rgba(20,184,166,0.04);
+  border: 1px solid var(--border-accent);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.resumen-consolidado-header {
+  padding: 12px 18px;
+  background: rgba(20,184,166,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.resumen-consolidado-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-teal);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resumen-consolidado-meta {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.resumen-producto-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.resumen-producto-row:last-child {
+  border-bottom: none;
+}
+
+.resumen-producto-nombre {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.resumen-producto-total {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+/* Botón Copiar como base */
+.btn-copiar-base {
+  background: linear-gradient(135deg, var(--accent-purple), #6366f1);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px 24px;
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--transition);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3);
+}
+
+.btn-copiar-base:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(139, 92, 246, 0.45);
+}
+
+/* Separador de módulos en navbar */
+.nav-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 4px;
+}
+
+/* Empty state recetas */
+.recetas-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 80px 40px;
+  text-align: center;
+}
