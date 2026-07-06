@@ -19,6 +19,14 @@
 | **Administradora (PROPIETARIA)** | Control comercial completo, financiero y técnico de laboratorio | *Todas las vistas:* Tablero OC, Nueva OC, Recetas, Formulario Técnico, Lotes, Reportes | Ninguna. Tiene permisos totales. |
 | **Operario** | Visualiza el tablero del taller y ejecuta recetas de teñido | Tablero OC, Recetas, Lotes en Proceso | Bloqueado de crear OCs, crear recetas, cambiar estados de OC, duplicar recetas y ver reportes generales |
 
+### 🔑 Credenciales de Acceso para Pruebas
+
+| Rol | Usuario (Email) | Contraseña (Password) | Permisos en la App |
+|---|---|---|---|
+| **Administradora (Karen)** | `karen@servitex.com` | `Servitex2026!` | Acceso total administrativo y financiero |
+| **Operario (Stephano)** | `stephano@servitex.com` | `Operario2026!` | Acceso restringido a vista operativa de teñido |
+| **Operario (Maicol)** | `maicol@servitex.com` | `Operario2026!` | Acceso restringido a vista operativa de teñido |
+
 ---
 
 ## ¿Cómo funciona? (Flujo de uso)
@@ -70,7 +78,7 @@
 
 ## Funcionalidades del sistema
 
-### 🔒 Módulo de Seguridad y Autenticación (¡NUEVO!)
+### 🔒 Módulo de Seguridad y Autenticación
 - **Autenticación JWT en Memoria:** Login seguro. Los tokens JWT se manejan exclusivamente en memoria del frontend para prevenir ataques XSS.
 - **Middleware de Roles:** Controladores en backend protegidos para asegurar que solo la propietaria (`PROPIETARIA`) pueda crear o alterar datos críticos.
 - **Cierre por Inactividad:** Cierre de sesión automático tras 15 minutos sin interactuar con la aplicación, protegiendo las terminales del taller.
@@ -87,7 +95,7 @@
 - **Historial de Iteraciones (Ajustes):** Registro cronológico de variaciones en los porcentajes de colorantes aplicados a una receta, con cálculo automático de gramos.
 - **UX Inteligente:** En caso de errores al guardar, la aplicación alerta con un toast y desplaza (scroll) automáticamente al usuario hacia los campos erróneos al inicio del formulario.
 
-### 📊 Módulo 3 — Reportes e Inteligencia de Negocio (¡NUEVO!)
+### 📊 Módulo 3 — Reportes e Inteligencia de Negocio
 - **Consumo de Productos:** Gráfico de barras horizontal que expone el consumo acumulado en kilogramos del Top 5 de colorantes químicos.
 - **Fidelidad de Clientes:** Ranking interactivo de los clientes más activos, mostrando medallas con el podio en oro y total de lotes teñidos/metros procesados.
 - **Producción Temporal:** Gráfico de líneas dinámico que registra los metros totales teñidos, agrupados por períodos de tiempo ajustables: **Mes**, **Trimestre** o **Año**.
@@ -193,57 +201,3 @@ Todos los nuevos endpoints requieren una cabecera `Authorization: Bearer <JWT_TO
 *   `GET /api/reportes/consumo-colorantes`: Obtiene el consumo acumulado en gramos y kilogramos de colorantes.
 *   `GET /api/reportes/fidelidad-clientes`: Retorna el ranking de actividad y volumen de metros teñidos por cliente.
 *   `GET /api/reportes/produccion-temporal?agrupacion=mes|trimestre|año`: Obtiene la producción de metros teñidos según el período indicado.
-
----
-
-## Instalación y Configuración Local
-
-### Requisitos previos
-- Node.js ≥ 18
-- Base de datos PostgreSQL activa
-
-### Configuración del Servidor (Backend)
-1. Ingresa a la carpeta del servidor:
-   ```bash
-   cd backend
-   ```
-2. Instala las dependencias:
-   ```bash
-   npm install
-   ```
-3. Crea tu archivo de variables de entorno `.env` basándote en `.env.example`:
-   ```env
-   PORT=3000
-   DATABASE_URL="postgresql://USUARIO:PASSWORD@HOST.render.com/servitex_db?sslmode=require"
-   JWT_SECRET="un_secreto_largo_y_seguro_para_los_tokens_de_servitex_2026"
-   FRONTEND_URL=http://localhost:5173
-   ```
-4. Aplica las migraciones de Prisma y ejecuta la semilla:
-   ```bash
-   npx prisma db push
-   npx ts-node prisma/seed.ts
-   npx ts-node prisma/fix-tipos-reporte.ts
-   ```
-5. Inicia el servidor de desarrollo:
-   ```bash
-   npm run dev
-   ```
-
-### Configuración de la Interfaz (Frontend)
-1. Abre una segunda terminal e ingresa al frontend:
-   ```bash
-   cd frontend
-   ```
-2. Instala las dependencias:
-   ```bash
-   npm install
-   ```
-3. Crea un archivo `.env` en la raíz de `frontend` (opcional si deseas conectarte a una API de producción):
-   ```env
-   VITE_API_URL=http://localhost:3000
-   ```
-4. Inicia el servidor Vite:
-   ```bash
-   npm run dev
-   ```
-5. Abre en tu navegador la dirección http://localhost:5173 e inicia sesión.
