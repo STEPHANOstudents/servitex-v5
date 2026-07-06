@@ -101,7 +101,7 @@
 - **Producción Temporal:** Gráfico de líneas dinámico que registra los metros totales teñidos, agrupados por períodos de tiempo ajustables: **Mes**, **Trimestre** o **Año**.
 - **Generación de Reportes PDF:**
   * **Reportes Generales:** Botones para imprimir reportes consolidados (Consumo, Ranking, Producción).
-  * **Historial por Cliente (¡NUEVO!):** Botón `🖨️` al lado de cada cliente que genera un PDF detallado de su actividad. Muestra indicadores de facturación total Con/Sin IGV, metros/lotes procesados, el desglose de todos sus lotes individuales y un **cuadro resumen contable consolidado estilo Excel** que agrupa los costos Sin IGV y Con IGV (18%) por cada código de OC con su suma total final.
+  * **Historial por Cliente (¡NUEVO!):** Botón `🖨️` al lado de cada cliente que genera un PDF detallado. Organiza la actividad del cliente en **recuadros independientes por cada Orden de Compra** con la fecha, desglose de lotes (artículo, metros, color, costo Sin/Con IGV) y subtotales. Cuenta con indicadores generales superiores y finaliza con un **cuadro resumen contable consolidado estilo Excel** que agrupa los costos por OC con una doble línea de suma total.
 
 ---
 
