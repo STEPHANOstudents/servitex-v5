@@ -209,18 +209,49 @@ const Reportes: React.FC = () => {
     const hastaStr = hasta ? new Date(hasta).toLocaleDateString('es-PE') : 'Actual';
     const fechaGen = new Date().toLocaleString('es-PE');
     
-    // Agrupar por Código OC
-    const ocsAgrupadas: Record<string, number> = {};
-    for (const d of cliente.detalles || []) {
-      if (!ocsAgrupadas[d.numeroOC]) {
-        ocsAgrupadas[d.numeroOC] = 0;
-      }
-      ocsAgrupadas[d.numeroOC] += d.costo;
+    // Agrupar lotes y calcular totales por código de OC
+    interface GrupoOC {
+      numeroOC: string;
+      fecha: string;
+      lotes: Array<{
+        articuloNombre: string;
+        metros: number;
+        costo: number; // Sin IGV
+        colorSolicitado: string;
+      }>;
+      totalSinIGV: number;
+      totalConIGV: number;
+      totalMetros: number;
     }
 
-    const ocsList = Object.entries(ocsAgrupadas).map(([numeroOC, totalSinIGV]) => {
-      const totalConIGV = totalSinIGV * 1.18;
-      return { numeroOC, totalSinIGV, totalConIGV };
+    const ocsMap = new Map<string, GrupoOC>();
+
+    for (const d of cliente.detalles || []) {
+      if (!ocsMap.has(d.numeroOC)) {
+        ocsMap.set(d.numeroOC, {
+          numeroOC: d.numeroOC,
+          fecha: d.fecha,
+          lotes: [],
+          totalSinIGV: 0,
+          totalConIGV: 0,
+          totalMetros: 0
+        });
+      }
+      const grupo = ocsMap.get(d.numeroOC)!;
+      grupo.lotes.push({
+        articuloNombre: d.articuloNombre,
+        metros: d.metros,
+        costo: d.costo,
+        colorSolicitado: d.colorSolicitado
+      });
+      grupo.totalSinIGV += d.costo;
+      grupo.totalMetros += d.metros;
+    }
+
+    // Convertir mapa a lista y calcular valores con IGV
+    const ocsList: GrupoOC[] = Array.from(ocsMap.values()).map(g => {
+      g.totalConIGV = g.totalSinIGV * 1.18;
+      return g;
     });
 
     const sumaTotalSinIGV = ocsList.reduce((acc, item) => acc + item.totalSinIGV, 0);
@@ -273,7 +304,7 @@ const Reportes: React.FC = () => {
           </div>
           
           <div style="font-size: 13px; color: #334155; margin-bottom: 24px;">
-            Reporte consolidado de la actividad comercial para el cliente <strong>${cliente.clienteNombre}</strong>. A continuación se desglosan todos los lotes procesados y el resumen de facturación por Orden de Compra.
+            Reporte consolidado de la actividad comercial para el cliente <strong>${cliente.clienteNombre}</strong>. A continuación se desglosan todos los lotes procesados agrupados por Orden de Compra y el resumen contable correspondiente.
           </div>
 
           <div class="summary-cards">
@@ -291,35 +322,46 @@ const Reportes: React.FC = () => {
             </div>
           </div>
 
-          <div class="section-title">Detalle de Lotes Procesados</div>
-          <table>
-            <thead>
-              <tr>
-                <th>Fecha OC</th>
-                <th>Código OC</th>
-                <th>Artículo</th>
-                <th>Color</th>
-                <th style="text-align: right;">Cantidad (m)</th>
-                <th style="text-align: right;">Costo Sin IGV (S/)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${!cliente.detalles || cliente.detalles.length === 0 ? `
-                <tr>
-                  <td colspan="6" style="text-align: center; color: #64748b;">No hay lotes registrados para este cliente en el periodo seleccionado.</td>
-                </tr>
-              ` : cliente.detalles.map((d) => `
-                <tr>
-                  <td>${new Date(d.fecha).toLocaleDateString('es-PE')}</td>
-                  <td><strong>${d.numeroOC}</strong></td>
-                  <td>${d.articuloNombre}</td>
-                  <td>${d.colorSolicitado}</td>
-                  <td style="text-align: right;">${d.metros.toLocaleString('es-PE')} m</td>
-                  <td style="text-align: right; font-weight: 600;">S/ ${d.costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+          <div class="section-title">Detalle de Lotes por Orden de Compra</div>
+          
+          ${ocsList.length === 0 ? `
+            <p style="text-align: center; color: #64748b; font-size: 13px;">No hay lotes registrados para este cliente en el periodo seleccionado.</p>
+          ` : ocsList.map((oc) => `
+            <div style="background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 16px; margin-bottom: 24px; page-break-inside: avoid;">
+              <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px solid #d97706; padding-bottom: 8px; margin-bottom: 12px;">
+                <span style="font-size: 13px; font-weight: 700; color: #0f172a;">Orden de Compra: <span style="color: #d97706;">${oc.numeroOC}</span></span>
+                <span style="font-size: 11px; color: #64748b; font-weight: 500;">Fecha OC: ${new Date(oc.fecha).toLocaleDateString('es-PE')}</span>
+              </div>
+              <table style="margin: 0; width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="background-color: #f8fafc;">
+                    <th style="font-size: 10px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase;">Artículo</th>
+                    <th style="font-size: 10px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; color: #475569; font-weight: 700; text-transform: uppercase;">Color</th>
+                    <th style="font-size: 10px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase;">Cantidad (m)</th>
+                    <th style="font-size: 10px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase;">Costo Sin IGV</th>
+                    <th style="font-size: 10px; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569; font-weight: 700; text-transform: uppercase;">Costo Con IGV (18%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${oc.lotes.map((l) => `
+                    <tr>
+                      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 12px;">${l.articuloNombre}</td>
+                      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; font-size: 12px;">${l.colorSolicitado}</td>
+                      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 12px;">${l.metros.toLocaleString('es-PE')} m</td>
+                      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 12px;">S/ ${l.costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td style="padding: 8px 12px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 12px; font-weight: 600;">S/ ${(l.costo * 1.18).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                  `).join('')}
+                  <tr style="background-color: #f8fafc; font-weight: 700; border-top: 1.5px solid #cbd5e1;">
+                    <td colspan="2" style="padding: 8px 12px; font-size: 11px;">TOTALES ORDEN</td>
+                    <td style="padding: 8px 12px; text-align: right; font-size: 11px; color: #475569;">${oc.totalMetros.toLocaleString('es-PE')} m</td>
+                    <td style="padding: 8px 12px; text-align: right; font-size: 11px; color: #475569;">S/ ${oc.totalSinIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="padding: 8px 12px; text-align: right; font-size: 11px; color: #d97706;">S/ ${oc.totalConIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          `).join('')}
 
           <div class="section-title">Cuadro Resumen de Facturación por Orden de Compra</div>
           <table>
