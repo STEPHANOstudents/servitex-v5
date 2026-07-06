@@ -68,19 +68,49 @@ export const reportesService = {
       where: Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {},
       include: {
         cliente: true,
-        detalles: true,
+        detalles: {
+          include: {
+            articulo: true,
+          },
+        },
       },
     });
 
-    const agrupadosClientes: Record<string, { totalTeñidos: number; totalMetros: number }> = {};
+    const agrupadosClientes: Record<
+      string,
+      {
+        totalTeñidos: number;
+        totalMetros: number;
+        detalles: Array<{
+          numeroOC: string;
+          articuloNombre: string;
+          metros: number;
+          costo: number;
+          colorSolicitado: string;
+          fecha: string;
+        }>;
+      }
+    > = {};
+
     for (const oc of ordenes) {
       const clienteNombre = oc.cliente.nombre;
       if (!agrupadosClientes[clienteNombre]) {
-        agrupadosClientes[clienteNombre] = { totalTeñidos: 0, totalMetros: 0 };
+        agrupadosClientes[clienteNombre] = { totalTeñidos: 0, totalMetros: 0, detalles: [] };
       }
       
       agrupadosClientes[clienteNombre].totalTeñidos += oc.detalles.length;
       agrupadosClientes[clienteNombre].totalMetros += oc.detalles.reduce((acc, d) => acc + d.cantidad, 0);
+
+      for (const d of oc.detalles) {
+        agrupadosClientes[clienteNombre].detalles.push({
+          numeroOC: oc.numeroOC,
+          articuloNombre: d.articulo.nombre,
+          metros: d.cantidad,
+          costo: d.total,
+          colorSolicitado: d.colorSolicitado,
+          fecha: oc.createdAt.toISOString(),
+        });
+      }
     }
 
     return Object.entries(agrupadosClientes)
@@ -88,6 +118,7 @@ export const reportesService = {
         clienteNombre,
         totalTeñidos: info.totalTeñidos,
         totalMetros: Math.round(info.totalMetros * 100) / 100,
+        detalles: info.detalles,
       }))
       .sort((a, b) => b.totalTeñidos - a.totalTeñidos)
       .slice(0, 5);

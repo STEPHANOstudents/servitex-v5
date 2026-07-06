@@ -202,6 +202,125 @@ const Reportes: React.FC = () => {
     win.document.close();
   };
 
+  const imprimirReporteCliente = (cliente: FidelidadCliente) => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const desdeStr = desde ? new Date(desde).toLocaleDateString('es-PE') : 'Inicio';
+    const hastaStr = hasta ? new Date(hasta).toLocaleDateString('es-PE') : 'Actual';
+    const fechaGen = new Date().toLocaleString('es-PE');
+    
+    // Calcular facturación total
+    const facturacionTotal = (cliente.detalles || []).reduce((acc, d) => acc + d.costo, 0);
+
+    win.document.write(`
+      <html>
+        <head>
+          <title>Historial de Lotes - ${cliente.clienteNombre}</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; padding: 40px; line-height: 1.6; background-color: #ffffff; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #d97706; padding-bottom: 20px; margin-bottom: 30px; }
+            .logo-mark { background-color: #d97706; color: #ffffff; font-weight: 800; font-size: 20px; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; margin-right: 10px; }
+            .logo-area { display: flex; align-items: center; }
+            .logo-text { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+            .logo-sub { font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+            .title-area { text-align: right; }
+            .report-title { font-size: 22px; font-weight: 800; margin: 0; color: #0f172a; letter-spacing: -0.5px; }
+            .metadata { font-size: 11px; color: #64748b; margin-top: 6px; font-weight: 500; }
+            
+            .summary-cards { display: flex; gap: 20px; margin-bottom: 30px; }
+            .summary-card { flex: 1; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 16px; }
+            .summary-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+            .summary-value { font-size: 18px; font-weight: 800; color: #0f172a; }
+            .summary-value.highlight { color: #d97706; }
+
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 60px; }
+            th { background-color: #f1f5f9; color: #475569; font-weight: 700; padding: 12px 16px; text-align: left; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+            td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .footer { margin-top: 100px; display: flex; justify-content: space-between; }
+            .signature-box { border-top: 1.5px solid #94a3b8; width: 220px; text-align: center; padding-top: 8px; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="logo-area">
+              <div class="logo-mark">SX</div>
+              <div>
+                <div class="logo-text">SERVITEX</div>
+                <div class="logo-sub">Sistema de Gestión Comercial</div>
+              </div>
+            </div>
+            <div class="title-area">
+              <h1 class="report-title">Historial de Lotes y Facturación</h1>
+              <div class="metadata">Rango: ${desdeStr} a ${hastaStr} &nbsp;|&nbsp; Emisión: ${fechaGen}</div>
+            </div>
+          </div>
+          
+          <div style="font-size: 13px; color: #334155; margin-bottom: 24px;">
+            Reporte consolidado de la actividad comercial para el cliente <strong>${cliente.clienteNombre}</strong>. A continuación se desglosan todos los lotes procesados en las órdenes de compra activas dentro del período filtrado.
+          </div>
+
+          <div class="summary-cards">
+            <div class="summary-card">
+              <div class="summary-label">Total Facturado</div>
+              <div class="summary-value highlight">S/ ${facturacionTotal.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Lotes Teñidos</div>
+              <div class="summary-value">${cliente.totalTeñidos} lotes</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">Metros Procesados</div>
+              <div class="summary-value">${cliente.totalMetros.toLocaleString('es-PE')} metros</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha OC</th>
+                <th>Código OC</th>
+                <th>Artículo</th>
+                <th>Color</th>
+                <th style="text-align: right;">Cantidad (m)</th>
+                <th style="text-align: right;">Costo Total (S/)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${!cliente.detalles || cliente.detalles.length === 0 ? `
+                <tr>
+                  <td colspan="6" style="text-align: center; color: #64748b;">No hay lotes registrados para este cliente en el periodo seleccionado.</td>
+                </tr>
+              ` : cliente.detalles.map((d) => `
+                <tr>
+                  <td>${new Date(d.fecha).toLocaleDateString('es-PE')}</td>
+                  <td><strong>${d.numeroOC}</strong></td>
+                  <td>${d.articuloNombre}</td>
+                  <td>${d.colorSolicitado}</td>
+                  <td style="text-align: right;">${d.metros.toLocaleString('es-PE')} m</td>
+                  <td style="text-align: right; font-weight: 600;">S/ ${d.costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="footer">
+            <div class="signature-box">Firma del Técnico Responsable</div>
+            <div class="signature-box">Firma Autorizada de Gerencia</div>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
   // Convertir gramos a Kg para el gráfico horizontal
   const consumoDataKg = consumo.map(c => ({
     nombre: c.nombre,
@@ -395,9 +514,39 @@ const Reportes: React.FC = () => {
                           <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{cliente.totalMetros.toLocaleString()} metros teñidos</div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        <span>🎨</span>
-                        <span>{cliente.totalTeñidos} lote{cliente.totalTeñidos !== 1 ? 's' : ''}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                          <span>🎨</span>
+                          <span>{cliente.totalTeñidos} lote{cliente.totalTeñidos !== 1 ? 's' : ''}</span>
+                        </div>
+                        <button
+                          type="button"
+                          title={`Imprimir historial detallado de ${cliente.clienteNombre}`}
+                          onClick={() => imprimirReporteCliente(cliente)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '15px',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '4px',
+                            color: 'var(--accent-gold)',
+                            transition: 'all 0.2s',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(217, 119, 6, 0.1)';
+                            e.currentTarget.style.transform = 'scale(1.15)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }}
+                        >
+                          🖨️
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -420,7 +569,7 @@ const Reportes: React.FC = () => {
                 backgroundColor: 'transparent'
               }}
             >
-              📥 Generar Reporte
+              📥 Imprimir Ranking General
             </button>
           </div>
 

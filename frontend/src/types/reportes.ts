@@ -11,6 +11,14 @@ export interface FidelidadCliente {
   clienteNombre: string;
   totalTeñidos: number;
   totalMetros: number;
+  detalles: Array<{
+    numeroOC: string;
+    articuloNombre: string;
+    metros: number;
+    costo: number;
+    colorSolicitado: string;
+    fecha: string;
+  }>;
 }
 
 export interface ProduccionTemporal {
