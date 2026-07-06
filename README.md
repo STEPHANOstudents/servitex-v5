@@ -6,8 +6,8 @@
 > 2. Generar **Recetas Técnicas de Teñido** y calcular baños químicos automáticos usando un **Motor Químico**.
 > 3. Generar y exportar **Reportes de Inteligencia Comercial y Operativa** en formato **PDF** para la toma de decisiones.
 
-🌐 **Demo en vivo:** https://servitex.onrender.com
-🔗 **API Backend:** https://servitex-backend.onrender.com/api/health
+🌐 **Demo en vivo:** https://servitex-v5.onrender.com
+🔗 **API Backend:** https://servitex-v6.onrender.com/api/health
 📦 **Repositorio:** https://github.com/STEPHANOstudents/servitex-v5
 
 ---
@@ -99,7 +99,9 @@
 - **Consumo de Productos:** Gráfico de barras horizontal que expone el consumo acumulado en kilogramos del Top 5 de colorantes químicos.
 - **Fidelidad de Clientes:** Ranking interactivo de los clientes más activos, mostrando medallas con el podio en oro y total de lotes teñidos/metros procesados.
 - **Producción Temporal:** Gráfico de líneas dinámico que registra los metros totales teñidos, agrupados por períodos de tiempo ajustables: **Mes**, **Trimestre** o **Año**.
-- **Generación de Reportes PDF:** Botón que genera un documento membretado formal e institucional de SERVITEX listo para descargar o imprimir. Cuenta con logotipo, metadatos, descripciones, tabla limpia de datos y líneas de firma para auditoría.
+- **Generación de Reportes PDF:**
+  * **Reportes Generales:** Botones para imprimir reportes consolidados (Consumo, Ranking, Producción).
+  * **Historial por Cliente (¡NUEVO!):** Botón `🖨️` al lado de cada cliente que genera un PDF detallado de su actividad. Muestra indicadores de facturación total Con/Sin IGV, metros/lotes procesados, el desglose de todos sus lotes individuales y un **cuadro resumen contable consolidado estilo Excel** que agrupa los costos Sin IGV y Con IGV (18%) por cada código de OC con su suma total final.
 
 ---
 

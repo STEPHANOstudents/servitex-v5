@@ -209,8 +209,22 @@ const Reportes: React.FC = () => {
     const hastaStr = hasta ? new Date(hasta).toLocaleDateString('es-PE') : 'Actual';
     const fechaGen = new Date().toLocaleString('es-PE');
     
-    // Calcular facturación total
-    const facturacionTotal = (cliente.detalles || []).reduce((acc, d) => acc + d.costo, 0);
+    // Agrupar por Código OC
+    const ocsAgrupadas: Record<string, number> = {};
+    for (const d of cliente.detalles || []) {
+      if (!ocsAgrupadas[d.numeroOC]) {
+        ocsAgrupadas[d.numeroOC] = 0;
+      }
+      ocsAgrupadas[d.numeroOC] += d.costo;
+    }
+
+    const ocsList = Object.entries(ocsAgrupadas).map(([numeroOC, totalSinIGV]) => {
+      const totalConIGV = totalSinIGV * 1.18;
+      return { numeroOC, totalSinIGV, totalConIGV };
+    });
+
+    const sumaTotalSinIGV = ocsList.reduce((acc, item) => acc + item.totalSinIGV, 0);
+    const sumaTotalConIGV = ocsList.reduce((acc, item) => acc + item.totalConIGV, 0);
 
     win.document.write(`
       <html>
@@ -233,11 +247,13 @@ const Reportes: React.FC = () => {
             .summary-value { font-size: 18px; font-weight: 800; color: #0f172a; }
             .summary-value.highlight { color: #d97706; }
 
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 60px; }
-            th { background-color: #f1f5f9; color: #475569; font-weight: 700; padding: 12px 16px; text-align: left; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-            td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; }
+            .section-title { font-size: 14px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 40px; margin-bottom: 12px; border-bottom: 2px solid #cbd5e1; padding-bottom: 6px; }
+
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 30px; }
+            th { background-color: #f1f5f9; color: #475569; font-weight: 700; padding: 10px 14px; text-align: left; border-bottom: 2px solid #cbd5e1; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+            td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #334155; }
             tr:nth-child(even) { background-color: #f8fafc; }
-            .footer { margin-top: 100px; display: flex; justify-content: space-between; }
+            .footer { margin-top: 80px; display: flex; justify-content: space-between; page-break-inside: avoid; }
             .signature-box { border-top: 1.5px solid #94a3b8; width: 220px; text-align: center; padding-top: 8px; font-size: 11px; color: #475569; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
           </style>
         </head>
@@ -257,24 +273,25 @@ const Reportes: React.FC = () => {
           </div>
           
           <div style="font-size: 13px; color: #334155; margin-bottom: 24px;">
-            Reporte consolidado de la actividad comercial para el cliente <strong>${cliente.clienteNombre}</strong>. A continuación se desglosan todos los lotes procesados en las órdenes de compra activas dentro del período filtrado.
+            Reporte consolidado de la actividad comercial para el cliente <strong>${cliente.clienteNombre}</strong>. A continuación se desglosan todos los lotes procesados y el resumen de facturación por Orden de Compra.
           </div>
 
           <div class="summary-cards">
             <div class="summary-card">
-              <div class="summary-label">Total Facturado</div>
-              <div class="summary-value highlight">S/ ${facturacionTotal.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div class="summary-label">Total Facturado (Con IGV)</div>
+              <div class="summary-value highlight">S/ ${sumaTotalConIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div class="summary-card">
-              <div class="summary-label">Lotes Teñidos</div>
-              <div class="summary-value">${cliente.totalTeñidos} lotes</div>
+              <div class="summary-label">Total Sin IGV</div>
+              <div class="summary-value">S/ ${sumaTotalSinIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
             </div>
             <div class="summary-card">
-              <div class="summary-label">Metros Procesados</div>
-              <div class="summary-value">${cliente.totalMetros.toLocaleString('es-PE')} metros</div>
+              <div class="summary-label">Metros Procesados (Lotes)</div>
+              <div class="summary-value">${cliente.totalMetros.toLocaleString('es-PE')} m (${cliente.totalTeñidos} lotes)</div>
             </div>
           </div>
 
+          <div class="section-title">Detalle de Lotes Procesados</div>
           <table>
             <thead>
               <tr>
@@ -283,7 +300,7 @@ const Reportes: React.FC = () => {
                 <th>Artículo</th>
                 <th>Color</th>
                 <th style="text-align: right;">Cantidad (m)</th>
-                <th style="text-align: right;">Costo Total (S/)</th>
+                <th style="text-align: right;">Costo Sin IGV (S/)</th>
               </tr>
             </thead>
             <tbody>
@@ -301,6 +318,35 @@ const Reportes: React.FC = () => {
                   <td style="text-align: right; font-weight: 600;">S/ ${d.costo.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
               `).join('')}
+            </tbody>
+          </table>
+
+          <div class="section-title">Cuadro Resumen de Facturación por Orden de Compra</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Código de Orden de Compra (OC)</th>
+                <th style="text-align: right;">Subtotal (Sin IGV)</th>
+                <th style="text-align: right;">Total Con IGV (18%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${ocsList.length === 0 ? `
+                <tr>
+                  <td colspan="3" style="text-align: center; color: #64748b;">No hay órdenes registradas en el periodo seleccionado.</td>
+                </tr>
+              ` : ocsList.map((oc) => `
+                <tr>
+                  <td><strong>${oc.numeroOC}</strong></td>
+                  <td style="text-align: right;">S/ ${oc.totalSinIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td style="text-align: right; font-weight: 600;">S/ ${oc.totalConIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+              `).join('')}
+              <tr style="background-color: #f1f5f9; font-weight: 800; border-top: 2px solid #94a3b8; border-bottom: 2px double #94a3b8;">
+                <td>SUMA TOTAL CONSOLIDADA</td>
+                <td style="text-align: right;">S/ ${sumaTotalSinIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align: right; color: #d97706; font-size: 14px;">S/ ${sumaTotalConIGV.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
             </tbody>
           </table>
 
