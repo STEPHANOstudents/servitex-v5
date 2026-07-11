@@ -777,6 +777,105 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Evolución de Costos por Ajuste de Laboratorio */}
+              {iteraciones.length > 0 && (
+                <div className="modal-seccion" style={{ marginTop: '24px' }}>
+                  <div className="modal-seccion-titulo">⏳ Evolución de Costos por Ajuste de Laboratorio</div>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                    Historial de variaciones de costos originados por cada corrección de color.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {iteraciones.map((it: any, idx: number) => {
+                      const costoTotalIt = it.costoTotal;
+                      if (costoTotalIt == null) return null; // Saltar iteraciones antiguas sin costeo
+
+                      // Calcular diferencia con la anterior
+                      let delta = 0;
+                      let cambiosColorantes: string[] = [];
+
+                      if (idx > 0) {
+                        const itPrev = iteraciones[idx - 1];
+                        if (itPrev.costoTotal != null) {
+                          delta = costoTotalIt - itPrev.costoTotal;
+
+                          // Comparar colorantes
+                          const colPrev = itPrev.colorantes || [];
+                          const colAct = it.colorantes || [];
+                          for (const col of colAct) {
+                            const prevItem = colPrev.find((c: any) => c.coloranteId === col.coloranteId);
+                            if (!prevItem) {
+                              cambiosColorantes.push(`+ ${col.nombreColorante} (+${col.porcentaje.toFixed(3)}%)`);
+                            } else if (col.porcentaje > prevItem.porcentaje) {
+                              const diffPct = col.porcentaje - prevItem.porcentaje;
+                              cambiosColorantes.push(`▲ ${col.nombreColorante} (+${diffPct.toFixed(3)}%)`);
+                            } else if (col.porcentaje < prevItem.porcentaje) {
+                              const diffPct = prevItem.porcentaje - col.porcentaje;
+                              cambiosColorantes.push(`▼ ${col.nombreColorante} (-${diffPct.toFixed(3)}%)`);
+                            }
+                          }
+                          for (const col of colPrev) {
+                            const actItem = colAct.find((c: any) => c.coloranteId === col.coloranteId);
+                            if (!actItem) {
+                              cambiosColorantes.push(`- ${col.nombreColorante} (Removido)`);
+                            }
+                          }
+                        }
+                      }
+
+                      return (
+                        <div key={idx} style={{ backgroundColor: '#f8fafc', borderLeft: `4px solid ${idx === 0 ? 'var(--accent-teal)' : 'var(--accent-purple)'}`, padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-subtle)', borderLeftWidth: '4px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong style={{ color: 'var(--text-primary)', fontSize: '13px' }}>Iteración #{it.iteracion} {idx === 0 ? '(Formulación Inicial)' : '(Ajuste de Receta)'}</strong>
+                            <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{new Date(it.fecha).toLocaleDateString('es-PE')}</span>
+                          </div>
+                          
+                          {it.observacion && (
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontStyle: 'italic', margin: '4px 0 8px 0' }}>
+                              &ldquo;{it.observacion}&rdquo;
+                            </div>
+                          )}
+
+                          {/* Detalles del Costo */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px', fontSize: '11px', color: 'var(--text-secondary)', margin: '6px 0', borderBottom: cambiosColorantes.length > 0 ? '1px dashed var(--border-subtle)' : 'none', paddingBottom: cambiosColorantes.length > 0 ? '6px' : '0' }}>
+                            <div>💧 Agua: <strong>S/ {it.costoAgua?.toFixed(2)}</strong></div>
+                            <div>🧪 Químicos: <strong>S/ {it.costoQuimicos?.toFixed(2)}</strong></div>
+                            <div>🎨 Colorantes: <strong>S/ {it.costoColorantes?.toFixed(2)}</strong></div>
+                            <div>👤 M. Obra: <strong>S/ {it.costoManoObra?.toFixed(2)}</strong></div>
+                          </div>
+
+                          {/* Variaciones y Cambios */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', fontSize: '11px', marginTop: '6px' }}>
+                            <div>
+                              {cambiosColorantes.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{ fontWeight: '600', color: 'var(--text-secondary)', fontSize: '10px' }}>Cambios en fórmula:</span>
+                                  {cambiosColorantes.map((c, i) => (
+                                    <span key={i} style={{ color: 'var(--text-primary)' }}>• {c}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ textAlign: 'right', marginLeft: 'auto' }}>
+                              <div style={{ fontSize: '12px', fontWeight: '700' }}>Costo Total: S/ {costoTotalIt.toFixed(2)}</div>
+                              {idx > 0 && (
+                                <div style={{ 
+                                  fontSize: '11px', 
+                                  fontWeight: '600',
+                                  color: delta > 0 ? '#ef4444' : delta < 0 ? 'var(--accent-green)' : 'var(--text-secondary)',
+                                  marginTop: '2px'
+                                }}>
+                                  {delta > 0 ? `📈 + S/ ${delta.toFixed(2)}` : delta < 0 ? `📉 - S/ ${Math.abs(delta).toFixed(2)}` : 'Sin variación'}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}

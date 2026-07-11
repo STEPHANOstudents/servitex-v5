@@ -280,19 +280,6 @@ export const recetasService = {
       colorantes:   datos.colorantes,
     });
 
-    // Generar primera iteración en el historial
-    const primeraIteracion = {
-      iteracion: 1,
-      fecha:     new Date().toISOString(),
-      colorantes: datos.colorantes.map((c) => ({
-        coloranteId:     c.coloranteId,
-        nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
-        porcentaje:      c.porcentaje,
-        gramos:          Math.round(datos.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100,
-      })),
-      observacion: 'Primera formulación inicial.',
-    };
-
     const recetaCreada = await prisma.$transaction(async (tx) => {
       // Buscar o crear artículo por nombre (texto libre, insensible a mayúsculas)
       const nombreArticulo = datos.articuloNombre.trim();
@@ -318,6 +305,24 @@ export const recetasService = {
         colorantes: colorantesConNombre,
         preciosMap,
       });
+
+      // Generar primera iteración en el historial con sus costos asociados
+      const primeraIteracion = {
+        iteracion: 1,
+        fecha:     new Date().toISOString(),
+        colorantes: datos.colorantes.map((c) => ({
+          coloranteId:     c.coloranteId,
+          nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
+          porcentaje:      c.porcentaje,
+          gramos:          Math.round(datos.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100,
+        })),
+        observacion: 'Primera formulación inicial.',
+        costoAgua:             costeo.costoAgua,
+        costoQuimicos:         costeo.costoQuimicos,
+        costoColorantes:       costeo.costoColorantes,
+        costoManoObra:         costeo.costoManoObra,
+        costoTotal:            costeo.costoTotal,
+      };
 
       const receta = await tx.recetaTecnica.create({
         data: {
@@ -385,23 +390,10 @@ export const recetasService = {
     }
     const mapColorantes = new Map(colorantesCatalogo.map(c => [c.id, c.nombre]));
 
-    // Construir nueva iteración
     const iteracionesExistentes = Array.isArray(receta.iteraciones)
       ? (receta.iteraciones as any[])
       : [];
     const numeroIteracion = iteracionesExistentes.length + 1;
-
-    const nuevaIteracion = {
-      iteracion: numeroIteracion,
-      fecha:     new Date().toISOString(),
-      colorantes: datos.colorantes.map((c) => ({
-        coloranteId:     c.coloranteId,
-        nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
-        porcentaje:      c.porcentaje,
-        gramos: Math.round(receta.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100,
-      })),
-      observacion: datos.observaciones || `Ajuste en iteración ${numeroIteracion}.`,
-    };
 
     const recetaActualizada = await prisma.$transaction(async (tx) => {
       // Reemplazar colorantes: borrar → insertar
@@ -435,6 +427,24 @@ export const recetasService = {
         colorantes: colorantesConNombre,
         preciosMap,
       });
+
+      // Construir nueva iteración con sus costos correspondientes
+      const nuevaIteracion = {
+        iteracion: numeroIteracion,
+        fecha:     new Date().toISOString(),
+        colorantes: datos.colorantes.map((c) => ({
+          coloranteId:     c.coloranteId,
+          nombreColorante: mapColorantes.get(c.coloranteId) ?? `ID:${c.coloranteId}`,
+          porcentaje:      c.porcentaje,
+          gramos:          Math.round(receta.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100,
+        })),
+        observacion:     datos.observaciones || `Ajuste en iteración ${numeroIteracion}.`,
+        costoAgua:       costeo.costoAgua,
+        costoQuimicos:   costeo.costoQuimicos,
+        costoColorantes: costeo.costoColorantes,
+        costoManoObra:   costeo.costoManoObra,
+        costoTotal:      costeo.costoTotal,
+      };
 
       // Actualizar receta: agrega iteración al historial, mueve a PROCESO y guarda costos
       return tx.recetaTecnica.update({
