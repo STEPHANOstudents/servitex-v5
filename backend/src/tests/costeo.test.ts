@@ -82,4 +82,18 @@ assertEqual(diferencia, 304.00, 'Diferencia (Venta con IGV - Costo)');
 assertEqual(retornoCaja, 85.9, 'Retorno de Caja % (304 / 354 * 100)');
 assertEqual(margenNeto, 83.3, 'Margen Neto % ((300 - 50) / 300 * 100)');
 
+// ---------------------------------------------------------------------------
+// 3. Escenario de Prueba para Costo de 1 Baño de Teñido Adicional (Ajustes)
+// ---------------------------------------------------------------------------
+import { calcularCostoUnBanoTeñido } from '../engines/costeo.engine';
+
+const costoExtra = calcularCostoUnBanoTeñido({
+  motorQuimico,
+  preciosMap,
+});
+
+console.log('\n--- 3. Validación de Costo de Baño Adicional (Iteraciones) ---');
+assertEqual(costoExtra.agua, 0.04, 'Costo de Agua Adicional (8L * 0.005)');
+assertEqual(costoExtra.quimicos, 1.62, 'Costo de Químicos Adicional (Secuestrante + Igualante + Sal + Potasa)');
+
 console.log('\n🎉 ¡TODAS LAS PRUEBAS UNITARIAS PASARON EXITOSAMENTE!');

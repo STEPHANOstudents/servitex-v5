@@ -14,7 +14,7 @@ import {
   ejecutarMotorQuimico,
   calcularNivelIntensidad,
 } from '../engines/quimico.engine';
-import { calcularCosteo } from '../engines/costeo.engine';
+import { calcularCosteo, calcularCostoUnBanoTeñido } from '../engines/costeo.engine';
 import type { CrearRecetaInput, RecetaResponse, RecetaListDTO, ColoranteInput } from '../types/recetas.types';
 
 // ---------------------------------------------------------------------------
@@ -428,7 +428,19 @@ export const recetasService = {
         preciosMap,
       });
 
-      // Construir nueva iteración con sus costos correspondientes
+      // Calcular costo de un baño de teñido adicional (agua + químicos de teñido principal)
+      const costoExtraBano = calcularCostoUnBanoTeñido({
+        motorQuimico,
+        preciosMap,
+      });
+
+      // En la iteración N (N > 1), sumamos N - 1 baños adicionales al costo base de un solo run
+      const multiplicadorAjustes = numeroIteracion - 1;
+      const costoAguaAcumulado = Math.round((costeo.costoAgua + (multiplicadorAjustes * costoExtraBano.agua)) * 100) / 100;
+      const costoQuimicosAcumulado = Math.round((costeo.costoQuimicos + (multiplicadorAjustes * costoExtraBano.quimicos)) * 100) / 100;
+      const costoTotalAcumulado = Math.round((costoAguaAcumulado + costoQuimicosAcumulado + costeo.costoColorantes + costeo.costoManoObra) * 100) / 100;
+
+      // Construir nueva iteración con sus costos correspondientes acumulados
       const nuevaIteracion = {
         iteracion: numeroIteracion,
         fecha:     new Date().toISOString(),
@@ -439,24 +451,24 @@ export const recetasService = {
           gramos:          Math.round(receta.pesoRealKg * 1000 * (c.porcentaje / 100) * 100) / 100,
         })),
         observacion:     datos.observaciones || `Ajuste en iteración ${numeroIteracion}.`,
-        costoAgua:       costeo.costoAgua,
-        costoQuimicos:   costeo.costoQuimicos,
+        costoAgua:       costoAguaAcumulado,
+        costoQuimicos:   costoQuimicosAcumulado,
         costoColorantes: costeo.costoColorantes,
         costoManoObra:   costeo.costoManoObra,
-        costoTotal:      costeo.costoTotal,
+        costoTotal:      costoTotalAcumulado,
       };
 
-      // Actualizar receta: agrega iteración al historial, mueve a PROCESO y guarda costos
+      // Actualizar receta: agrega iteración al historial, mueve a PROCESO y guarda costos acumulados
       return tx.recetaTecnica.update({
         where:   { id },
         data:    {
           estado: 'PROCESO',
           iteraciones: [...iteracionesExistentes, nuevaIteracion] as any,
-          costoAgua:             costeo.costoAgua,
-          costoQuimicos:         costeo.costoQuimicos,
+          costoAgua:             costoAguaAcumulado,
+          costoQuimicos:         costoQuimicosAcumulado,
           costoColorantes:       costeo.costoColorantes,
           costoManoObra:         costeo.costoManoObra,
-          costoTotal:            costeo.costoTotal,
+          costoTotal:            costoTotalAcumulado,
         },
         include: INCLUDE_SIN_COLORANTE_NOMBRE,
       });

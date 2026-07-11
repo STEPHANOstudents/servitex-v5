@@ -132,3 +132,41 @@ export function calcularCosteo(params: {
     costoTotal,
   };
 }
+
+/**
+ * Calcula el costo de agua e insumos químicos para un único baño de teñido adicional (ajuste).
+ */
+export function calcularCostoUnBanoTeñido(params: {
+  motorQuimico: ResultadoMotorQuimico;
+  preciosMap: Map<string, number>;
+}): { agua: number; quimicos: number } {
+  const { motorQuimico, preciosMap } = params;
+
+  // 1. Costo de agua para 1 baño
+  const precioAgua = preciosMap.get('AGUA') ?? 0;
+  const costoAgua = Math.round(motorQuimico.litrosAgua * precioAgua * 100) / 100;
+
+  // 2. Costo de químicos para el baño de teñido principal (máximo costo entre los baños de teñido en multifibra)
+  const banosTeñido = motorQuimico.secuencia.filter(b => b.fase.startsWith('TENIDO'));
+  let maxCostoQuimicos = 0;
+  for (const bano of banosTeñido) {
+    if (bano.esEnjuagueSimple || !bano.productos) continue;
+    let costoBano = 0;
+    for (const prod of bano.productos) {
+      const codigo = getInsumoCodigo(prod.nombre, bano.fase);
+      if (!codigo) continue;
+      const precioUnitario = preciosMap.get(codigo) ?? 0;
+      costoBano += prod.gramos * precioUnitario;
+    }
+    if (costoBano > maxCostoQuimicos) {
+      maxCostoQuimicos = costoBano;
+    }
+  }
+
+  const costoQuimicos = Math.round(maxCostoQuimicos * 100) / 100;
+
+  return {
+    agua: costoAgua,
+    quimicos: costoQuimicos,
+  };
+}
