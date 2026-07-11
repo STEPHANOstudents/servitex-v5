@@ -371,6 +371,9 @@ const App: React.FC = () => {
                   )
                 );
               }}
+              onOrdenEliminada={(idEliminada) => {
+                setOrdenes((prev) => prev.filter((o) => o.orden.id !== idEliminada));
+              }}
               onToast={agregarToast}
             />
           )

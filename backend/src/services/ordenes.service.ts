@@ -242,6 +242,28 @@ export const ordenesService = {
       return actualizada;
     });
   },
+
+  // ---------------------------------------------------------------------------
+  // ELIMINAR ORDEN DE COMPRA (con borrado de NotaEntrega y cascade implícito)
+  // ---------------------------------------------------------------------------
+  async eliminarOrden(id: number): Promise<boolean> {
+    const existe = await prisma.ordenCompra.findUnique({ where: { id } });
+    if (!existe) return false;
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Eliminar NotaEntrega si existe (ya que no tiene onDelete: Cascade)
+      await tx.notaEntrega.deleteMany({
+        where: { ordenCompraId: id }
+      });
+
+      // 2. Eliminar la Orden de Compra (Prisma cascada se encarga de Detalles, Recetas, Incidencias y Bitácora)
+      await tx.ordenCompra.delete({
+        where: { id }
+      });
+    });
+
+    return true;
+  },
 };
 
 // =============================================================================

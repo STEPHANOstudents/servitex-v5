@@ -4,7 +4,7 @@
 // =============================================================================
 import React, { useState, useEffect } from 'react';
 import type { OrdenCompraDB, OrdenResponse, LiquidacionOC } from '../types/ordenes';
-import { actualizarEstadoOrden } from '../services/api';
+import { actualizarEstadoOrden, eliminarOrden } from '../services/api';
 
 interface TableroControlProps {
   ordenes: OrdenResponse[];
@@ -12,6 +12,7 @@ interface TableroControlProps {
   onSeleccionarOrden: (orden: OrdenCompraDB, liquidacion: LiquidacionOC) => void;
   onNuevaOrden: () => void;
   onOrdenActualizada: (actualizada: OrdenCompraDB) => void;
+  onOrdenEliminada?: (id: number) => void;
   onToast: (tipo: 'success' | 'error', mensaje: string) => void;
 }
 
@@ -52,6 +53,7 @@ const TableroControl: React.FC<TableroControlProps> = ({
   onSeleccionarOrden,
   onNuevaOrden,
   onOrdenActualizada,
+  onOrdenEliminada,
   onToast,
 }) => {
   // --- Estados de filtros y búsqueda ---
@@ -60,6 +62,18 @@ const TableroControl: React.FC<TableroControlProps> = ({
 
   // --- Estado del menú de cambio de estado ---
   const [dropdownOpenId, setDropdownOpenId] = useState<number | null>(null);
+
+  const handleEliminarOrden = async (id: number) => {
+    try {
+      await eliminarOrden(id);
+      if (onOrdenEliminada) {
+        onOrdenEliminada(id);
+      }
+      onToast('success', 'Orden de Compra eliminada correctamente.');
+    } catch (err: any) {
+      onToast('error', `Error al eliminar la orden: ${err.message || 'Error desconocido'}`);
+    }
+  };
 
   // --- Cerrar dropdown al hacer clic fuera ---
   useEffect(() => {
@@ -440,29 +454,64 @@ const TableroControl: React.FC<TableroControlProps> = ({
                 </div>
               </div>
 
-              {/* Botón Ver liquidación */}
-              <button
-                type="button"
-                className="btn-liquidacion"
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  border: '1px solid var(--accent-teal)',
-                  backgroundColor: '#ffffff',
-                  color: 'var(--accent-teal)',
-                  padding: '10px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-                onClick={() => onSeleccionarOrden(oc.orden, oc.liquidacion)}
-              >
-                👁 Ver liquidación
-              </button>
+              {/* Botón Ver liquidación y Eliminar */}
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <button
+                  type="button"
+                  className="btn-liquidacion"
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    border: '1px solid var(--accent-teal)',
+                    backgroundColor: '#ffffff',
+                    color: 'var(--accent-teal)',
+                    padding: '10px',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => onSeleccionarOrden(oc.orden, oc.liquidacion)}
+                >
+                  👁 Ver liquidación
+                </button>
+                {rol === 'PROPIETARIA' && (
+                  <button
+                    type="button"
+                    title="Eliminar Orden de Compra"
+                    style={{
+                      border: '1px solid #ef4444',
+                      backgroundColor: '#ffffff',
+                      color: '#ef4444',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '14px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = '#fef2f2';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = '#ffffff';
+                    }}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`¿Estás completamente seguro de eliminar la Orden de Compra ${oc.orden.numeroOC}?\n\nEsta acción es irreversible y eliminará todos sus lotes, fórmulas y registros asociados.`)) {
+                        await handleEliminarOrden(oc.orden.id);
+                      }
+                    }}
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

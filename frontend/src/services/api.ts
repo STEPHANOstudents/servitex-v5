@@ -95,6 +95,19 @@ export async function actualizarEstadoOrden(
 }
 
 // ---------------------------------------------------------------------------
+// DELETE /api/ordenes/:id — Eliminar una orden
+// ---------------------------------------------------------------------------
+export async function eliminarOrden(id: number): Promise<{ id: number }> {
+  const res = await fetch(`${BASE_URL}/ordenes/${id}`, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeaders()
+    }
+  });
+  return handleResponse<{ id: number }>(res);
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/clientes — Obtener todos los clientes
 // ---------------------------------------------------------------------------
 export async function fetchClientes(): Promise<ClienteDB[]> {

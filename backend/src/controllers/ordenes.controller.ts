@@ -224,6 +224,34 @@ export async function actualizarEstadoOrden(req: Request, res: Response): Promis
   }
 }
 
+/**
+ * DELETE /api/ordenes/:id
+ * Elimina una Orden de Compra y todos sus registros cascada (sólo Propietaria).
+ */
+export async function eliminarOrden(req: Request, res: Response): Promise<void> {
+  try {
+    const rawId: string = String(req.params['id'] ?? '');
+    const id = parseInt(rawId, 10);
+
+    if (isNaN(id) || id <= 0) {
+      errorResponse(res, 400, 'El ID de la Orden de Compra debe ser un número entero positivo.');
+      return;
+    }
+
+    const eliminado = await ordenesService.eliminarOrden(id);
+
+    if (!eliminado) {
+      errorResponse(res, 404, `No se encontró la Orden de Compra con ID ${id}.`);
+      return;
+    }
+
+    successResponse(res, 200, 'Orden de Compra eliminada exitosamente.', { id });
+  } catch (error: unknown) {
+    console.error('[eliminarOrden] Error inesperado:', error);
+    errorResponse(res, 500, 'Error interno del servidor al eliminar la Orden de Compra.');
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Type guard para errores de constraint único de Prisma
 // ---------------------------------------------------------------------------
