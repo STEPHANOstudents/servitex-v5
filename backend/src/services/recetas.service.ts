@@ -23,7 +23,7 @@ import type { CrearRecetaInput, RecetaResponse, RecetaListDTO, ColoranteInput } 
 // ---------------------------------------------------------------------------
 type RecetaConRelaciones = {
   id: number;
-  detalleOrdenId: number;
+  detalleOrdenId: number | null;
   pesoRealKg: number;
   articuloId: number;
   relacionBano: number;
@@ -480,7 +480,9 @@ export const recetasService = {
       });
 
       // Automatización: OC pasa a COMPLETADA si todos los lotes están aprobados
-      await transicionarOCaCompletada(tx, receta.detalleOrdenId);
+      if (receta.detalleOrdenId) {
+        await transicionarOCaCompletada(tx, receta.detalleOrdenId);
+      }
 
       return receta;
     });
@@ -537,13 +539,15 @@ export const recetasService = {
         nombreColorante: c.colorante.nombre,
         porcentaje:      c.porcentaje,
       })),
-      lote: {
-        colorSolicitado:     r.detalleOrden.colorSolicitado,
-        descripcionArticulo: r.articulo.nombre,
-        cantidad:            r.detalleOrden.cantidad,
-        numeroOC:            r.detalleOrden.ordenCompra.numeroOC,
-        cliente:             r.detalleOrden.ordenCompra.cliente.nombre,
-      },
+      lote: r.detalleOrden
+        ? {
+            colorSolicitado:     r.detalleOrden.colorSolicitado,
+            descripcionArticulo: r.articulo.nombre,
+            cantidad:            r.detalleOrden.cantidad,
+            numeroOC:            r.detalleOrden.ordenCompra.numeroOC,
+            cliente:             r.detalleOrden.ordenCompra.cliente.nombre,
+          }
+        : undefined,
     }));
   },
 
@@ -578,5 +582,16 @@ export const recetasService = {
 
     const motorQuimico = buildMotorQuimico(recetaActualizada as RecetaConRelaciones);
     return mapRecetaToDTO(recetaActualizada as RecetaConRelaciones, motorQuimico);
+  },
+
+  // ---------------------------------------------------------------------------
+  // ELIMINAR RECETA TÉCNICA — Elimina la receta y sus colorantes asociados
+  // ---------------------------------------------------------------------------
+  async eliminarReceta(id: number): Promise<boolean> {
+    const existe = await prisma.recetaTecnica.findUnique({ where: { id } });
+    if (!existe) return false;
+
+    await prisma.recetaTecnica.delete({ where: { id } });
+    return true;
   },
 };

@@ -67,7 +67,7 @@ export interface MotorQuimicoResultado {
 // ---------------------------------------------------------------------------
 export interface RecetaDB {
   id: number;
-  detalleOrdenId: number;
+  detalleOrdenId: number | null;
   pesoRealKg: number;
   articuloId: number;            // ID del catálogo articulos_textiles
   articulo: string;              // nombre del artículo (flattened)

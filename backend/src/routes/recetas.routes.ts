@@ -10,6 +10,7 @@ import {
   aprobarReceta,
   guardarColor,
   obtenerPrecioSugerido,
+  eliminarReceta,
 } from '../controllers/recetas.controller';
 import { verificarToken, permitirRoles } from '../middlewares/auth.middleware';
 
@@ -59,5 +60,11 @@ router.patch('/:id/color', verificarToken, permitirRoles('PROPIETARIA'), guardar
  * Obtiene el precio unitario de venta sugerido basado en el costo total y un margen.
  */
 router.get('/:id/precio-sugerido', verificarToken, obtenerPrecioSugerido);
+
+/**
+ * DELETE /api/recetas/:id
+ * Elimina una receta técnica (sólo Propietaria).
+ */
+router.delete('/:id', verificarToken, permitirRoles('PROPIETARIA'), eliminarReceta);
 
 export default router;

@@ -452,6 +452,7 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
         <div style={{ display:'flex', gap:'4px', padding:'0 24px', borderBottom:'1px solid var(--border-subtle)', marginBottom:'20px' }}>
           {(['procedimiento', 'color', 'costos'] as const).map(tab => {
             if (tab === 'color' && receta.estado !== 'APROBADO') return null;
+            if (tab === 'costos' && !receta.detalleOrdenId) return null;
             return (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
                 style={{ padding:'12px 20px', border:'none', background:'transparent', fontSize:'14px', cursor:'pointer', transition:'all 0.2s ease', outline:'none',

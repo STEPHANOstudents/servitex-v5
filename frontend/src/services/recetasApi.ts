@@ -198,3 +198,17 @@ export async function obtenerPrecioSugerido(id: number, margenObjetivo: number):
   return handle<{ precioSugerido: number | null }>(res);
 }
 
+/**
+ * DELETE /api/recetas/:id
+ * Elimina una receta técnica específica (sólo Propietaria).
+ */
+export async function eliminarReceta(id: number): Promise<{ id: number }> {
+  const res = await fetch(`${BASE}/recetas/${id}`, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeaders()
+    }
+  });
+  return handle<{ id: number }>(res);
+}
+

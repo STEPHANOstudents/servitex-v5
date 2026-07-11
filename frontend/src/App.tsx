@@ -13,7 +13,7 @@ import FormularioReceta from './components/FormularioReceta';
 import TableroRecetas from './components/TableroRecetas';
 import ModalDetalleReceta from './components/ModalDetalleReceta';
 import { obtenerOrdenes } from './services/api';
-import { obtenerRecetas, obtenerRecetaPorId } from './services/recetasApi';
+import { obtenerRecetas, obtenerRecetaPorId, eliminarReceta } from './services/recetasApi';
 import type {
   OrdenResponse, OrdenCompraDB, LiquidacionOC,
 } from './types/ordenes';
@@ -441,6 +441,15 @@ const App: React.FC = () => {
                 setVista('lab-formulario');
               }}
               onCopiarBase={handleCopiarBase}
+              onEliminarReceta={async (id) => {
+                try {
+                  await eliminarReceta(id);
+                  setRecetas(prev => prev.filter(r => r.id !== id));
+                  agregarToast('success', 'Receta técnica eliminada exitosamente.');
+                } catch (err: any) {
+                  agregarToast('error', `Error al eliminar la receta: ${err.message || 'Error desconocido'}`);
+                }
+              }}
             />
           )
         )}

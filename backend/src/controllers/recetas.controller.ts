@@ -229,3 +229,31 @@ export async function obtenerPrecioSugerido(req: Request, res: Response): Promis
     errorResponse(res, 500, error instanceof Error ? error.message : 'Error interno al calcular el precio sugerido.');
   }
 }
+
+// ---------------------------------------------------------------------------
+// DELETE /api/recetas/:id
+// Elimina una receta técnica (sólo Propietaria)
+// ---------------------------------------------------------------------------
+export async function eliminarReceta(req: Request, res: Response): Promise<void> {
+  try {
+    const rawId = String(req.params['id'] ?? '');
+    const id = parseInt(rawId, 10);
+
+    if (isNaN(id) || id <= 0) {
+      errorResponse(res, 400, 'El ID de la receta debe ser un entero positivo.');
+      return;
+    }
+
+    const eliminado = await recetasService.eliminarReceta(id);
+
+    if (!eliminado) {
+      errorResponse(res, 404, `No se encontró la receta técnica con ID ${id}.`);
+      return;
+    }
+
+    successResponse(res, 200, 'Receta técnica eliminada exitosamente.', { id });
+  } catch (error: unknown) {
+    console.error('[eliminarReceta] Error:', error);
+    errorResponse(res, 500, error instanceof Error ? error.message : 'Error interno al eliminar la receta técnica.');
+  }
+}

@@ -51,10 +51,11 @@ interface TableroRecetasProps {
   onSeleccionar: (id: number) => void;
   onNuevaReceta: () => void;
   onCopiarBase: (preload: RecetaPreload) => void;
+  onEliminarReceta?: (id: number) => void;
 }
 
 const TableroRecetas: React.FC<TableroRecetasProps> = ({
-  recetas, rol, onSeleccionar, onNuevaReceta, onCopiarBase,
+  recetas, rol, onSeleccionar, onNuevaReceta, onCopiarBase, onEliminarReceta,
 }) => {
   const [filtroFibra, setFiltroFibra] = useState<'TODOS' | 'ALGODON' | 'NYLON' | 'POLIESTER' | 'MULTIFIBRA'>('TODOS');
   const [pagina, setPagina] = useState(1);
@@ -297,6 +298,7 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
                 onToggle={() => handleToggleExpand(r.id)}
                 onVerDetalles={onSeleccionar}
                 onCopiarBase={onCopiarBase}
+                onEliminarReceta={onEliminarReceta}
                 catalogos={catalogos}
               />
             ))}
@@ -331,11 +333,12 @@ interface MiniCartaRecetaProps {
   onToggle: () => void;
   onVerDetalles: (id: number) => void;
   onCopiarBase: (preload: RecetaPreload) => void;
+  onEliminarReceta?: (id: number) => void;
   catalogos: Catalogos | null;
 }
 
 const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
-  receta, rol, isExpanded, onToggle, onVerDetalles, onCopiarBase, catalogos,
+  receta, rol, isExpanded, onToggle, onVerDetalles, onCopiarBase, onEliminarReceta, catalogos,
 }) => {
   const fibraClase = getFibraClase(receta.composicionFibra);
   const nivelClase = getNivelClase(receta.nivelIntensidad);
@@ -488,41 +491,70 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
           </button>
 
           {rol === 'PROPIETARIA' && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{
-                flex: 1,
-                backgroundColor: 'var(--accent-teal)',
-                color: '#ffffff',
-                border: 'none',
-                fontSize: '12px',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                fontWeight: 600,
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                const preload: RecetaPreload = {
-                  pesoRealKg: String(receta.pesoRealKg),
-                  articulo: receta.articulo,
-                  articuloId: receta.articuloId,
-                  composicionFibra: receta.composicionFibra,
-                  relacionBano: String(receta.relacionBano),
-                  descripcionColor: receta.descripcionColor,
-                  observacionesTecnicas: receta.observacionesTecnicas ?? '',
-                  colorantes: receta.colorantes.map(col => ({
-                    nombre: col.nombreColorante,
-                    coloranteId: col.coloranteId,
-                    porcentaje: String(col.porcentaje),
-                  })),
-                };
-                onCopiarBase(preload);
-              }}
-            >
-              Duplicar
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{
+                  flex: 1,
+                  backgroundColor: 'var(--accent-teal)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '12px',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const preload: RecetaPreload = {
+                    pesoRealKg: String(receta.pesoRealKg),
+                    articulo: receta.articulo,
+                    articuloId: receta.articuloId,
+                    composicionFibra: receta.composicionFibra,
+                    relacionBano: String(receta.relacionBano),
+                    descripcionColor: receta.descripcionColor,
+                    observacionesTecnicas: receta.observacionesTecnicas ?? '',
+                    colorantes: receta.colorantes.map(col => ({
+                      nombre: col.nombreColorante,
+                      coloranteId: col.coloranteId,
+                      porcentaje: String(col.porcentaje),
+                    })),
+                  };
+                  onCopiarBase(preload);
+                }}
+              >
+                Duplicar
+              </button>
+              <button
+                type="button"
+                title="Eliminar Receta"
+                style={{
+                  border: '1px solid #ef4444',
+                  backgroundColor: '#ffffff',
+                  color: '#ef4444',
+                  fontSize: '12px',
+                  padding: '8px 10px',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (window.confirm(`¿Estás seguro de eliminar la receta "${receta.descripcionColor}"?\n\nEsta acción es irreversible.`)) {
+                    if (onEliminarReceta) {
+                      onEliminarReceta(receta.id);
+                    }
+                  }
+                }}
+              >
+                🗑️
+              </button>
+            </>
           )}
         </div>
       </div>
