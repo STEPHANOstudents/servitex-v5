@@ -81,6 +81,11 @@ export interface RecetaResponse {
     colorHex?:             string | null;
     colorRgb?:             any;
     colorMiniatura?:       string | null;
+    costoAgua?:            number | null;
+    costoQuimicos?:        number | null;
+    costoColorantes?:      number | null;
+    costoManoObra?:        number | null;
+    costoTotal?:           number | null;
     createdAt:             string;
     colorantes: Array<{
       coloranteId:     number;   // ID del catálogo colorantes_catalogo
@@ -111,6 +116,11 @@ export interface RecetaListDTO {
   colorHex?:             string | null;
   colorRgb?:             any;
   colorMiniatura?:       string | null;
+  costoAgua?:            number | null;
+  costoQuimicos?:        number | null;
+  costoColorantes?:      number | null;
+  costoManoObra?:        number | null;
+  costoTotal?:           number | null;
   createdAt:             string;
   colorantes: Array<{
     coloranteId:     number;

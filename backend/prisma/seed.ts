@@ -210,7 +210,62 @@ async function main() {
   }
   console.log('  ✅ usuarios');
 
-  console.log('\n🎉 Seed completado. Base de datos lista con 9 catálogos poblados y usuarios inicializados.');
+  // ──────────────────────────────────────────────────────────────────────────
+  // PRECIOS DE INSUMOS Y COLORANTES (Fase 1)
+  // ──────────────────────────────────────────────────────────────────────────
+  console.log('🌱 Inicializando precios de insumos y colorantes...');
+  const preciosInsumosData = [
+    { codigoInsumo: 'AGUA',                  nombreInsumo: 'Agua Industrial',             precioUnitario: 0.005,  unidadMedida: 'L' },
+    { codigoInsumo: 'POTASA_PREBLANQUEO',    nombreInsumo: 'Potasa Cáustica (Preblanqueo)', precioUnitario: 0.003,  unidadMedida: 'g' },
+    { codigoInsumo: 'POTASA_FIJACION',       nombreInsumo: 'Potasa de Fijación',          precioUnitario: 0.005,  unidadMedida: 'g' },
+    { codigoInsumo: 'AGUA_OXIGENADA',        nombreInsumo: 'Agua Oxigenada',              precioUnitario: 0.006,  unidadMedida: 'g' },
+    { codigoInsumo: 'HUMECTANTE',            nombreInsumo: 'Humectante',                  precioUnitario: 0.015,  unidadMedida: 'g' },
+    { codigoInsumo: 'DESENGRASANTE',         nombreInsumo: 'Desengrasante',               precioUnitario: 0.015,  unidadMedida: 'g' },
+    { codigoInsumo: 'ACIDO_ACETICO_GLACIAL', nombreInsumo: 'Ácido Acético Glacial',        precioUnitario: 0.012,  unidadMedida: 'g' },
+    { codigoInsumo: 'SECUESTRANTE',          nombreInsumo: 'Secuestrante',                precioUnitario: 0.005,  unidadMedida: 'g' },
+    { codigoInsumo: 'IGUALANTE',             nombreInsumo: 'Igualante',                   precioUnitario: 0.008,  unidadMedida: 'g' },
+    { codigoInsumo: 'SAL_INDUSTRIAL',        nombreInsumo: 'Sal Industrial',              precioUnitario: 0.0015, unidadMedida: 'g' },
+    { codigoInsumo: 'JABON',                 nombreInsumo: 'Jabón',                       precioUnitario: 0.009,  unidadMedida: 'g' },
+    { codigoInsumo: 'ULTRASIL_B',            nombreInsumo: 'Ultrasil-B (Suavizante)',     precioUnitario: 0.018,  unidadMedida: 'g' }
+  ];
+
+  for (const p of preciosInsumosData) {
+    await prisma.precioInsumo.upsert({
+      where: { codigoInsumo: p.codigoInsumo },
+      update: {
+        nombreInsumo: p.nombreInsumo,
+        precioUnitario: p.precioUnitario,
+        unidadMedida: p.unidadMedida,
+      },
+      create: p,
+    });
+  }
+
+  // Seedar también los colorantes del catálogo con sus códigos y precios unitarios
+  const colorantesExistentes = await prisma.coloranteCatalogo.findMany();
+  for (const c of colorantesExistentes) {
+    const codigoColorante = c.nombre.toUpperCase().replace(/\s+/g, '_');
+    // Para Ramazol Red ponemos 0.350, para el resto un valor por defecto aproximados como 0.300
+    const precio = c.nombre.toLowerCase().includes('ramazol red') ? 0.350 : 0.300;
+
+    await prisma.precioInsumo.upsert({
+      where: { codigoInsumo: codigoColorante },
+      update: {
+        nombreInsumo: `Colorante: ${c.nombre}`,
+        precioUnitario: precio,
+        unidadMedida: 'g',
+      },
+      create: {
+        codigoInsumo: codigoColorante,
+        nombreInsumo: `Colorante: ${c.nombre}`,
+        precioUnitario: precio,
+        unidadMedida: 'g',
+      },
+    });
+  }
+  console.log('  ✅ precios_insumos');
+
+  console.log('\n🎉 Seed completado. Base de datos lista con catálogos poblados, usuarios y precios inicializados.');
 }
 
 main()

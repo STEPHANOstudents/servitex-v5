@@ -9,6 +9,7 @@ import {
   registrarIteracion,
   aprobarReceta,
   guardarColor,
+  obtenerPrecioSugerido,
 } from '../controllers/recetas.controller';
 import { verificarToken, permitirRoles } from '../middlewares/auth.middleware';
 
@@ -52,5 +53,11 @@ router.post('/:id/aprobar', verificarToken, permitirRoles('PROPIETARIA'), aproba
  * Guarda colorHex, colorRgb y colorMiniatura de referencia.
  */
 router.patch('/:id/color', verificarToken, permitirRoles('PROPIETARIA'), guardarColor);
+
+/**
+ * GET /api/recetas/:id/precio-sugerido
+ * Obtiene el precio unitario de venta sugerido basado en el costo total y un margen.
+ */
+router.get('/:id/precio-sugerido', verificarToken, obtenerPrecioSugerido);
 
 export default router;

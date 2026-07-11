@@ -84,6 +84,11 @@ export interface RecetaDB {
   colorHex?: string;
   colorRgb?: { r: number; g: number; b: number };
   colorMiniatura?: string;
+  costoAgua?: number | null;
+  costoQuimicos?: number | null;
+  costoColorantes?: number | null;
+  costoManoObra?: number | null;
+  costoTotal?: number | null;
   createdAt: string;
   colorantes: Array<{ coloranteId: number; nombreColorante: string; porcentaje: number }>;
 }

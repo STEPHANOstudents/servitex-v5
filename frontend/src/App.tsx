@@ -21,6 +21,7 @@ import type { RecetaListItem, RecetaConMotor, RecetaPreload } from './types/rece
 import LotesProceso from './components/LotesProceso';
 import Login from './components/Login';
 import Reportes from './components/Reportes';
+import AdminPrecios from './components/AdminPrecios';
 import type { Usuario } from './types/auth';
 import { setTokenInMemory } from './services/authHeaders';
 import { useInactivityLogout } from './hooks/useInactivityLogout';
@@ -28,7 +29,7 @@ import { useInactivityLogout } from './hooks/useInactivityLogout';
 // ---------------------------------------------------------------------------
 // Tipos locales
 // ---------------------------------------------------------------------------
-type Vista = 'formulario' | 'tablero' | 'lab-formulario' | 'lab-proceso' | 'lab-tablero' | 'reportes';
+type Vista = 'formulario' | 'tablero' | 'lab-formulario' | 'lab-proceso' | 'lab-tablero' | 'reportes' | 'precios';
 
 interface ToastMessage {
   id: string;
@@ -288,7 +289,7 @@ const App: React.FC = () => {
             )}
           </button>
 
-          {/* Reportes */}
+          {/* Reportes e Insumos */}
           {usuario?.rol === 'PROPIETARIA' && (
             <>
               <div className="nav-separator" />
@@ -296,6 +297,11 @@ const App: React.FC = () => {
                 className={`nav-btn ${vista === 'reportes' ? 'active' : ''}`}
                 onClick={() => setVista('reportes')}>
                 📈 Reportes
+              </button>
+              <button id="nav-btn-precios" type="button"
+                className={`nav-btn ${vista === 'precios' ? 'active' : ''}`}
+                onClick={() => setVista('precios')}>
+                ⚙️ Tarifas
               </button>
             </>
           )}
@@ -438,6 +444,11 @@ const App: React.FC = () => {
         {/* ── Vista: Reportes (Módulo de Inteligencia) ── */}
         {vista === 'reportes' && usuario?.rol === 'PROPIETARIA' && (
           <Reportes />
+        )}
+
+        {/* ── Vista: Tarifas de Insumos (Módulo de Costeo) ── */}
+        {vista === 'precios' && usuario?.rol === 'PROPIETARIA' && (
+          <AdminPrecios />
         )}
       </main>
 

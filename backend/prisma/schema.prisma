@@ -220,6 +220,11 @@ model RecetaTecnica {
   colorHex              String?          @db.VarChar(7)
   colorRgb              Json?
   colorMiniatura        String?
+  costoAgua             Float?
+  costoQuimicos         Float?
+  costoColorantes       Float?
+  costoManoObra         Float?
+  costoTotal            Float?
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
@@ -347,4 +352,15 @@ model Usuario {
   updatedAt    DateTime @updatedAt
 
   @@map("usuarios")
+}
+
+model PrecioInsumo {
+  id             Int      @id @default(autoincrement())
+  codigoInsumo   String   @unique @db.VarChar(50) // "AGUA", "POTASA_PREBLANQUEO", "POTASA_FIJACION", "RAMAZOL_RED", etc.
+  nombreInsumo   String   @db.VarChar(100)
+  precioUnitario Float    // Precio por Litro o Gramo
+  unidadMedida   String   @db.VarChar(10) // "L" o "g"
+  updatedAt      DateTime @updatedAt
+
+  @@map("precios_insumos")
 }

@@ -142,3 +142,59 @@ export async function guardarColor(
   });
   return handle<RecetaConMotor>(res);
 }
+
+// ---------------------------------------------------------------------------
+// MÓDULO DE COSTEO Y PRECIOS (Fase 1 y 2)
+// ---------------------------------------------------------------------------
+
+export interface PrecioInsumo {
+  id: number;
+  codigoInsumo: string;
+  nombreInsumo: string;
+  precioUnitario: number;
+  unidadMedida: string;
+  updatedAt: string;
+}
+
+/**
+ * GET /api/precios
+ * Obtiene todos los precios de insumos.
+ */
+export async function obtenerPreciosInsumos(): Promise<PrecioInsumo[]> {
+  const res = await fetch(`${BASE}/precios`, {
+    headers: {
+      ...getAuthHeaders()
+    }
+  });
+  return handle<PrecioInsumo[]>(res);
+}
+
+/**
+ * PUT /api/precios/:id
+ * Actualiza el precio unitario de un insumo.
+ */
+export async function actualizarPrecioInsumo(id: number, precioUnitario: number): Promise<PrecioInsumo> {
+  const res = await fetch(`${BASE}/precios/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders()
+    },
+    body: JSON.stringify({ precioUnitario }),
+  });
+  return handle<PrecioInsumo>(res);
+}
+
+/**
+ * GET /api/recetas/:id/precio-sugerido?margenObjetivo=40
+ * Obtiene el precio de venta sugerido para una receta dado un margen.
+ */
+export async function obtenerPrecioSugerido(id: number, margenObjetivo: number): Promise<{ precioSugerido: number | null }> {
+  const res = await fetch(`${BASE}/recetas/${id}/precio-sugerido?margenObjetivo=${margenObjetivo}`, {
+    headers: {
+      ...getAuthHeaders()
+    }
+  });
+  return handle<{ precioSugerido: number | null }>(res);
+}
+

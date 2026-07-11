@@ -4,6 +4,7 @@
 import { Request, Response } from 'express';
 import { recetasService } from '../services/recetas.service';
 import { validarCrearReceta } from '../validators/recetas.validator';
+import { prisma } from '../lib/prisma';
 import type { ApiError, ApiResponse } from '../types/ordenes.types';
 
 function errorResponse(
@@ -179,5 +180,52 @@ export async function guardarColor(req: Request, res: Response): Promise<void> {
   } catch (error: unknown) {
     console.error('[guardarColor] Error:', error);
     errorResponse(res, 500, error instanceof Error ? error.message : 'Error interno al guardar el color.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/recetas/:id/precio-sugerido?margenObjetivo=40
+// Calcula el precio de venta sugerido basado en el costo total de la receta y un margen
+// ---------------------------------------------------------------------------
+export async function obtenerPrecioSugerido(req: Request, res: Response): Promise<void> {
+  try {
+    const rawId = String(req.params['id'] ?? '');
+    const id = parseInt(rawId, 10);
+
+    if (isNaN(id) || id <= 0) {
+      errorResponse(res, 400, 'El ID de la receta debe ser un entero positivo.');
+      return;
+    }
+
+    const margen = parseFloat(req.query['margenObjetivo'] as string);
+    if (isNaN(margen) || margen < 0 || margen >= 100) {
+      errorResponse(res, 400, 'El margen objetivo debe ser un número entre 0 y 99.');
+      return;
+    }
+
+    const receta = await prisma.recetaTecnica.findUnique({
+      where: { id },
+    });
+
+    if (!receta) {
+      errorResponse(res, 404, 'Receta técnica no encontrada.');
+      return;
+    }
+
+    if (receta.costoTotal == null) {
+      successResponse(res, 200, 'La receta no ha sido costeada.', { precioSugerido: null });
+      return;
+    }
+
+    // Precio Venta Sugerido = Costo Producción Receta / (1 − (Margen Objetivo % / 100))
+    const precioSugerido = receta.costoTotal / (1 - (margen / 100));
+    const rounded = Math.round(precioSugerido * 100) / 100;
+
+    successResponse(res, 200, 'Precio de venta sugerido calculado exitosamente.', {
+      precioSugerido: rounded,
+    });
+  } catch (error: unknown) {
+    console.error('[obtenerPrecioSugerido] Error:', error);
+    errorResponse(res, 500, error instanceof Error ? error.message : 'Error interno al calcular el precio sugerido.');
   }
 }

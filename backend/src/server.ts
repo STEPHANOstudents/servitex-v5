@@ -8,6 +8,7 @@ import clientesRouter  from './routes/clientes.routes';
 import colorRouter     from './routes/color.routes';
 import authRouter      from './routes/auth.routes';
 import reportesRouter  from './routes/reportes.routes';
+import preciosRouter   from './routes/precios.routes';
 
 
 dotenv.config();
@@ -87,6 +88,11 @@ app.use('/api/clientes',   clientesRouter);
 // Rutas de la API — Módulo de Reportes e Inteligencia
 // ---------------------------------------------------------------------------
 app.use('/api/reportes',   reportesRouter);
+
+// ---------------------------------------------------------------------------
+// Rutas de la API — Módulo de Precios de Insumos (CRUD)
+// ---------------------------------------------------------------------------
+app.use('/api/precios',    preciosRouter);
 
 // ---------------------------------------------------------------------------
 // Manejador 404 — Ruta no encontrada

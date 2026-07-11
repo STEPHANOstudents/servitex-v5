@@ -14,6 +14,7 @@ import {
   ejecutarMotorQuimico,
   calcularNivelIntensidad,
 } from '../engines/quimico.engine';
+import { calcularCosteo } from '../engines/costeo.engine';
 import type { CrearRecetaInput, RecetaResponse, RecetaListDTO, ColoranteInput } from '../types/recetas.types';
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,11 @@ type RecetaConRelaciones = {
   colorHex: string | null;
   colorRgb: any;
   colorMiniatura: string | null;
+  costoAgua: number | null;
+  costoQuimicos: number | null;
+  costoColorantes: number | null;
+  costoManoObra: number | null;
+  costoTotal: number | null;
   createdAt: Date;
   articulo: { nombre: string };
   composicionFibra: { codigo: string; etiqueta: string };
@@ -90,6 +96,11 @@ function mapRecetaToDTO(
       colorHex:              r.colorHex,
       colorRgb:              r.colorRgb,
       colorMiniatura:        r.colorMiniatura,
+      costoAgua:             r.costoAgua,
+      costoQuimicos:         r.costoQuimicos,
+      costoColorantes:       r.costoColorantes,
+      costoManoObra:         r.costoManoObra,
+      costoTotal:            r.costoTotal,
       createdAt:             r.createdAt.toISOString(),
       colorantes: r.colorantes.map((c) => {
         // Si viene un mapa explícito lo usamos; si no, usamos el join de Prisma.
@@ -294,6 +305,20 @@ export const recetasService = {
         });
       }
 
+      // Obtener precios de insumos y calcular costeo
+      const precios = await tx.precioInsumo.findMany();
+      const preciosMap = new Map<string, number>(precios.map(p => [p.codigoInsumo, p.precioUnitario]));
+
+      const colorantesConNombre = datos.colorantes.map(c => ({
+        nombreColorante: mapColorantes.get(c.coloranteId) ?? '',
+        porcentaje: c.porcentaje,
+      }));
+      const costeo = calcularCosteo({
+        motorQuimico,
+        colorantes: colorantesConNombre,
+        preciosMap,
+      });
+
       const receta = await tx.recetaTecnica.create({
         data: {
           detalleOrdenId:        datos.detalleOrdenId,
@@ -308,6 +333,11 @@ export const recetasService = {
           secuenciaBanos:        motorQuimico.secuencia as any,
           iteraciones:           [primeraIteracion] as any,
           observacionesTecnicas: datos.observacionesTecnicas?.trim() ?? null,
+          costoAgua:             costeo.costoAgua,
+          costoQuimicos:         costeo.costoQuimicos,
+          costoColorantes:       costeo.costoColorantes,
+          costoManoObra:         costeo.costoManoObra,
+          costoTotal:            costeo.costoTotal,
         },
       });
 
@@ -384,10 +414,40 @@ export const recetasService = {
         })),
       });
 
-      // Actualizar receta: agrega iteración al historial y mueve a PROCESO
+      // Recalcular motor químico con la nueva secuencia de colorantes
+      const motorQuimico = ejecutarMotorQuimico({
+        composicion:  receta.composicionFibra.codigo,
+        pesoRealKg:   receta.pesoRealKg,
+        relacionBano: receta.relacionBano,
+        colorantes:   datos.colorantes,
+      });
+
+      // Obtener precios y calcular costeo actualizado
+      const precios = await tx.precioInsumo.findMany();
+      const preciosMap = new Map<string, number>(precios.map(p => [p.codigoInsumo, p.precioUnitario]));
+
+      const colorantesConNombre = datos.colorantes.map(c => ({
+        nombreColorante: mapColorantes.get(c.coloranteId) ?? '',
+        porcentaje: c.porcentaje,
+      }));
+      const costeo = calcularCosteo({
+        motorQuimico,
+        colorantes: colorantesConNombre,
+        preciosMap,
+      });
+
+      // Actualizar receta: agrega iteración al historial, mueve a PROCESO y guarda costos
       return tx.recetaTecnica.update({
         where:   { id },
-        data:    { estado: 'PROCESO', iteraciones: [...iteracionesExistentes, nuevaIteracion] as any },
+        data:    {
+          estado: 'PROCESO',
+          iteraciones: [...iteracionesExistentes, nuevaIteracion] as any,
+          costoAgua:             costeo.costoAgua,
+          costoQuimicos:         costeo.costoQuimicos,
+          costoColorantes:       costeo.costoColorantes,
+          costoManoObra:         costeo.costoManoObra,
+          costoTotal:            costeo.costoTotal,
+        },
         include: INCLUDE_SIN_COLORANTE_NOMBRE,
       });
     });
@@ -456,6 +516,11 @@ export const recetasService = {
       colorHex:              r.colorHex,
       colorRgb:              r.colorRgb,
       colorMiniatura:        r.colorMiniatura,
+      costoAgua:             r.costoAgua,
+      costoQuimicos:         r.costoQuimicos,
+      costoColorantes:       r.costoColorantes,
+      costoManoObra:         r.costoManoObra,
+      costoTotal:            r.costoTotal,
       createdAt:             r.createdAt.toISOString(),
       colorantes: r.colorantes.map((c) => ({
         coloranteId:     c.coloranteId,

@@ -104,6 +104,11 @@ export interface DetalleOrdenDB {
   recetaTecnica?: {
     id: number;
     estado: string;
+    costoAgua?: number | null;
+    costoQuimicos?: number | null;
+    costoColorantes?: number | null;
+    costoManoObra?: number | null;
+    costoTotal?: number | null;
   } | null;
 }
 

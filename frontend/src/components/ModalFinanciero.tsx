@@ -179,69 +179,186 @@ const ModalFinanciero: React.FC<ModalFinancieroProps> = ({
         {/* Body */}
         <div className="modal-body">
           {/* ================================================================
-              DESGLOSE LINEAL POR COLOR
+              DESGLOSE LINEAL POR COLOR CON COMPARATIVA DE COSTO
               ================================================================ */}
           <div className="desglose-seccion-label">
             📦 Desglose por lote / color ({orden.detalles.length} ítems)
           </div>
 
-          <div className="desglose-lista">
-            {orden.detalles.map((detalle, idx) => (
-              <div className="desglose-item" key={detalle.id}>
-                <div className="desglose-item-left">
-                  <div className="desglose-color">{detalle.colorSolicitado}</div>
-                  <div className="desglose-detalle">
-                    {detalle.articulo.nombre} &nbsp;·&nbsp; {detalle.cantidad.toFixed(2)} m × S/ {detalle.precioPorMetro.toFixed(2)}
+          <div className="desglose-lista" style={{ maxHeight: '260px' }}>
+            {orden.detalles.map((detalle) => {
+              const costo = detalle.recetaTecnica?.costoTotal;
+              const ventaConIGV = detalle.total * 1.18;
+
+              let costedUI = null;
+              if (costo != null) {
+                const diff = ventaConIGV - costo;
+                const retCaja = (diff / ventaConIGV) * 100;
+                const margNeto = ((detalle.total - costo) / detalle.total) * 100;
+                let itemSemaforoColor = '#ef4444'; // rojo
+                let itemSemaforoLabel = 'Crítico';
+                if (margNeto >= 15 && margNeto <= 30) {
+                  itemSemaforoColor = '#eab308'; // amarillo
+                  itemSemaforoLabel = 'Aceptable';
+                } else if (margNeto > 30) {
+                  itemSemaforoColor = 'var(--accent-green)'; // verde
+                  itemSemaforoLabel = 'Excelente';
+                }
+
+                costedUI = (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px', marginTop: '6px', fontSize: '11px', color: 'var(--text-secondary)', backgroundColor: '#f8fafc', padding: '8px 10px', border: '1px solid var(--border-subtle)', borderRadius: '6px' }}>
+                    <div>Producción: <strong>S/ {costo.toFixed(2)}</strong></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      Neto: <strong>{margNeto.toFixed(1)}%</strong>
+                      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: itemSemaforoColor }} title={`Margen: ${itemSemaforoLabel}`} />
+                    </div>
+                    <div>Retorno Caja: <strong>{retCaja.toFixed(1)}%</strong></div>
+                    <div>Utilidad: <strong style={{ color: diff >= 0 ? 'var(--accent-teal)' : 'var(--accent-purple)' }}>S/ {diff.toFixed(2)}</strong></div>
                   </div>
+                );
+              } else {
+                costedUI = (
+                  <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', backgroundColor: '#f8fafc', padding: '6px 10px', border: '1px dashed var(--border-subtle)', borderRadius: '6px' }}>
+                    ⚠️ Lote sin receta aprobada o "Sin costear"
+                  </div>
+                );
+              }
+
+              return (
+                <div className="desglose-item" key={detalle.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div className="desglose-color">{detalle.colorSolicitado}</div>
+                      <div className="desglose-detalle">
+                        {detalle.articulo.nombre} &nbsp;·&nbsp; {detalle.cantidad.toFixed(2)} m × S/ {detalle.precioPorMetro.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="desglose-item-precio" style={{ color: 'var(--text-primary)', textAlign: 'right' }}>
+                      S/ {detalle.total.toFixed(2)}
+                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: 'normal', marginTop: '2px' }}>
+                        c/IGV: S/ {ventaConIGV.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                  {costedUI}
                 </div>
-                <div
-                  className="desglose-item-precio"
-                  style={{
-                    color: idx % 2 === 0 ? 'var(--accent-teal)' : 'var(--accent-purple)',
-                  }}
-                >
-                  S/ {detalle.total.toFixed(2)}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* ================================================================
-              TOTALES FINANCIEROS
+              TOTALES FINANCIEROS Y MÁRGENES DE GANANCIA (Fase 2)
               ================================================================ */}
-          <div className="modal-totales">
-            {/* Subtotal */}
-            <div className="totales-row">
-              <span className="totales-row-label">Subtotal General (Valor Venta)</span>
-              <span className="totales-row-value">S/ {liquidacion.subtotalVenta.toFixed(2)}</span>
-            </div>
+          {(() => {
+            let totalCostoProduccion = 0;
+            let subtotalVentaCosteado = 0;
+            let totalVentaConIGVCosteado = 0;
+            let lotesSinCostearCount = 0;
+            const lotesTotalesCount = orden.detalles.length;
 
-            {/* IGV 18% */}
-            <div className="totales-row">
-              <span className="totales-row-label">IGV (18%)</span>
-              <span className="totales-row-value">S/ {liquidacion.igv.toFixed(2)}</span>
-            </div>
+            for (const det of orden.detalles) {
+              const costo = det.recetaTecnica?.costoTotal;
+              if (costo != null) {
+                totalCostoProduccion += costo;
+                subtotalVentaCosteado += det.total;
+                totalVentaConIGVCosteado += det.total * 1.18;
+              } else {
+                lotesSinCostearCount++;
+              }
+            }
 
-            {/* Metros totales */}
-            <div className="totales-row">
-              <span className="totales-row-label">Total metros procesados</span>
-              <span className="totales-row-value">{liquidacion.metrosTotales.toFixed(2)} m</span>
-            </div>
+            const allCosted = lotesSinCostearCount === 0;
+            const anyCosted = lotesSinCostearCount < lotesTotalesCount;
 
-            <div className="totales-divider" />
+            const diferenciaOC = totalVentaConIGVCosteado - totalCostoProduccion;
+            const retornoCajaOC = totalVentaConIGVCosteado > 0 ? (diferenciaOC / totalVentaConIGVCosteado) * 100 : 0;
+            const margenNetoOC = subtotalVentaCosteado > 0 ? ((subtotalVentaCosteado - totalCostoProduccion) / subtotalVentaCosteado) * 100 : 0;
 
-            {/* Total Real a Pagar — destacado */}
-            <div className="totales-final">
-              <span className="totales-final-label">
-                Total Real a Pagar
-                <br />
-                <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)' }}>
-                  Monto Facturado (Subtotal + IGV)
-                </span>
-              </span>
-              <span className="totales-final-value">S/ {liquidacion.totalReal.toFixed(2)}</span>
-            </div>
-          </div>
+            let semaforoOCColor = '#ef4444'; // rojo
+            let semaforoOCLabel = 'Crítico';
+            if (margenNetoOC >= 15 && margenNetoOC <= 30) {
+              semaforoOCColor = '#eab308'; // amarillo
+              semaforoOCLabel = 'Aceptable';
+            } else if (margenNetoOC > 30) {
+              semaforoOCColor = 'var(--accent-green)'; // verde
+              semaforoOCLabel = 'Excelente';
+            }
+
+            return (
+              <div className="modal-totales">
+                {/* Subtotal */}
+                <div className="totales-row">
+                  <span className="totales-row-label">Subtotal General (Valor Venta)</span>
+                  <span className="totales-row-value">S/ {liquidacion.subtotalVenta.toFixed(2)}</span>
+                </div>
+
+                {/* IGV 18% */}
+                <div className="totales-row">
+                  <span className="totales-row-label">IGV (18%)</span>
+                  <span className="totales-row-value">S/ {liquidacion.igv.toFixed(2)}</span>
+                </div>
+
+                {/* Metros totales */}
+                <div className="totales-row">
+                  <span className="totales-row-label">Total metros procesados</span>
+                  <span className="totales-row-value">{liquidacion.metrosTotales.toFixed(2)} m</span>
+                </div>
+
+                <div className="totales-divider" />
+
+                {/* Costo de Producción OC */}
+                <div className="totales-row">
+                  <span className="totales-row-label">
+                    Costo Producción OC {!allCosted && <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>(Lotes costeados)</span>}
+                  </span>
+                  <span className="totales-row-value" style={{ color: 'var(--text-secondary)' }}>
+                    {anyCosted ? `S/ ${totalCostoProduccion.toFixed(2)}` : 'Sin costear'}
+                  </span>
+                </div>
+
+                {anyCosted && (
+                  <>
+                    {/* Utilidad OC */}
+                    <div className="totales-row">
+                      <span className="totales-row-label">Utilidad General (Facturado - Producción)</span>
+                      <span className="totales-row-value" style={{ color: diferenciaOC >= 0 ? 'var(--accent-teal)' : 'var(--accent-purple)' }}>
+                        S/ {diferenciaOC.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Margen Neto / Retorno de Caja */}
+                    <div className="totales-row">
+                      <span className="totales-row-label">Margen Neto (Sin IGV) / Retorno Caja</span>
+                      <span className="totales-row-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {margenNetoOC.toFixed(1)}% / {retornoCajaOC.toFixed(1)}%
+                        <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '50%', backgroundColor: semaforoOCColor }} title={`Semaforo OC: ${semaforoOCLabel}`} />
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {!allCosted && (
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '8px', borderTop: '1px dashed var(--border-subtle)', paddingTop: '6px', textAlign: 'center' }}>
+                    ⚠️ Nota: Hay {lotesSinCostearCount} lote(s) sin costear. Los cálculos de margen neto y utilidad solo consideran lotes con recetas calculadas.
+                  </div>
+                )}
+
+                <div className="totales-divider" />
+
+                {/* Total Real a Pagar — destacado */}
+                <div className="totales-final">
+                  <span className="totales-final-label">
+                    Total Real a Pagar
+                    <br />
+                    <span style={{ fontSize: '11px', fontWeight: 400, color: 'var(--text-muted)' }}>
+                      Monto Facturado (Subtotal + IGV)
+                    </span>
+                  </span>
+                  <span className="totales-final-value">S/ {liquidacion.totalReal.toFixed(2)}</span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Footer */}

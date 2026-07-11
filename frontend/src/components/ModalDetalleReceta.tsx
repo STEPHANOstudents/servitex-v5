@@ -100,12 +100,21 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
 }) => {
   const { receta, motorQuimico } = data;
 
-  const [activeTab, setActiveTab]   = useState<'procedimiento' | 'color'>('procedimiento');
+  const [activeTab, setActiveTab]   = useState<'procedimiento' | 'color' | 'costos'>('procedimiento');
   const [catalogos, setCatalogos]   = useState<Catalogos | null>(null);
   const [stream, setStream]         = useState<MediaStream | null>(null);
   const [showVideo, setShowVideo]   = useState(false);
   const [loadedImageUrl, setLoadedImageUrl]   = useState<string | null>(null);
   const [loadedImageFile, setLoadedImageFile] = useState<File | null>(null);
+  const [margenObjetivo, setMargenObjetivo]   = useState(40);
+  const [precioVentaTest, setPrecioVentaTest] = useState(100);
+
+  // Sincronizar precio sugerido inicial en el simulador
+  useEffect(() => {
+    if (receta.costoTotal) {
+      setPrecioVentaTest(Math.round(receta.costoTotal * 1.5 * 10) / 10);
+    }
+  }, [receta.costoTotal]);
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX]   = useState(0);
   const [startY, setStartY]   = useState(0);
@@ -439,21 +448,22 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
           <button id="btn-cerrar-modal-receta" className="modal-close" onClick={onCerrar} aria-label="Cerrar">✕</button>
         </div>
 
-        {/* ── PESTAÑAS (solo para recetas APROBADO) ── */}
-        {receta.estado === 'APROBADO' && (
-          <div style={{ display:'flex', gap:'4px', padding:'0 24px', borderBottom:'1px solid var(--border-subtle)', marginBottom:'20px' }}>
-            {(['procedimiento', 'color'] as const).map(tab => (
+        {/* ── PESTAÑAS (siempre visibles) ── */}
+        <div style={{ display:'flex', gap:'4px', padding:'0 24px', borderBottom:'1px solid var(--border-subtle)', marginBottom:'20px' }}>
+          {(['procedimiento', 'color', 'costos'] as const).map(tab => {
+            if (tab === 'color' && receta.estado !== 'APROBADO') return null;
+            return (
               <button key={tab} type="button" onClick={() => setActiveTab(tab)}
                 style={{ padding:'12px 20px', border:'none', background:'transparent', fontSize:'14px', cursor:'pointer', transition:'all 0.2s ease', outline:'none',
                   fontWeight: activeTab === tab ? '600' : '500',
                   color: activeTab === tab ? 'var(--accent-teal)' : 'var(--text-secondary)',
                   borderBottom: activeTab === tab ? '3px solid var(--accent-teal)' : '3px solid transparent',
                 }}>
-                {tab === 'procedimiento' ? '🧪 Procedimiento' : '🎨 Color de Referencia'}
+                {tab === 'procedimiento' ? '🧪 Procedimiento' : tab === 'color' ? '🎨 Color de Referencia' : '💰 Costos y Márgenes'}
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
 
         {/* ── CONTENIDO PROCEDIMIENTO ── */}
         {activeTab === 'procedimiento' && (
@@ -621,6 +631,155 @@ const ModalDetalleReceta: React.FC<ModalDetalleRecetaProps> = ({
 
         {/* ── CONTENIDO COLOR ── */}
         {activeTab === 'color' && renderTabColor()}
+
+        {/* ── CONTENIDO COSTOS ── */}
+        {activeTab === 'costos' && (() => {
+          if (receta.costoTotal == null) {
+            return (
+              <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>💰</div>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Sin Costeo Histórico</h3>
+                <p style={{ maxWidth: '400px', margin: '8px auto', fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Esta receta fue creada antes de implementar el módulo de costos. Para costearla, realiza un nuevo ajuste (iteración) o guarda una nueva receta.
+                </p>
+              </div>
+            );
+          }
+
+          const margenValido = !isNaN(margenObjetivo) && margenObjetivo >= 0 && margenObjetivo < 100;
+          const precioSugerido = margenValido ? receta.costoTotal / (1 - (margenObjetivo / 100)) : 0;
+
+          const ventaTestSubtotal = parseFloat(precioVentaTest as any) || 0;
+          const ventaTestConIGV = ventaTestSubtotal * 1.18;
+          const utilidadTest = ventaTestConIGV - receta.costoTotal;
+          const retornoCajaTest = ventaTestConIGV > 0 ? (utilidadTest / ventaTestConIGV) * 100 : 0;
+          const margenNetoTest = ventaTestSubtotal > 0 ? ((ventaTestSubtotal - receta.costoTotal) / ventaTestSubtotal) * 100 : 0;
+
+          let semaforoClase = 'nivel-1'; // rojo
+          let semaforoLabel = 'Crítico';
+          if (margenNetoTest >= 15 && margenNetoTest <= 30) {
+            semaforoClase = 'nivel-2'; // amarillo/naranja
+            semaforoLabel = 'Aceptable';
+          } else if (margenNetoTest > 30) {
+            semaforoClase = 'nivel-3'; // verde
+            semaforoLabel = 'Excelente';
+          }
+
+          return (
+            <div style={{ padding: '0 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="modal-seccion" style={{ marginBottom: 0 }}>
+                <div className="modal-seccion-titulo">💰 Desglose de Costos de Producción</div>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  Valores calculados al momento de registrar la receta con las tarifas unitarias vigentes.
+                </p>
+                <div className="resumen-consolidado" style={{ marginTop: '8px' }}>
+                  <div className="resumen-producto-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span className="resumen-producto-nombre" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>💧 Agua Industrial ({totalAgua} L totales)</span>
+                    <span className="resumen-producto-total" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px' }}>S/ {receta.costoAgua?.toFixed(2)}</span>
+                  </div>
+                  <div className="resumen-producto-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span className="resumen-producto-nombre" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>🧪 Insumos Químicos Auxiliares</span>
+                    <span className="resumen-producto-total" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px' }}>S/ {receta.costoQuimicos?.toFixed(2)}</span>
+                  </div>
+                  <div className="resumen-producto-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span className="resumen-producto-nombre" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>🎨 Colorantes de Fórmula</span>
+                    <span className="resumen-producto-total" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px' }}>S/ {receta.costoColorantes?.toFixed(2)}</span>
+                  </div>
+                  <div className="resumen-producto-row" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <span className="resumen-producto-nombre" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>👤 Mano de Obra (lote: {receta.pesoRealKg} kg)</span>
+                    <span className="resumen-producto-total" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '13px' }}>S/ {receta.costoManoObra?.toFixed(2)}</span>
+                  </div>
+                  <div className="totales-divider" style={{ margin: '12px 0', height: '1px', backgroundColor: 'var(--border-subtle)' }} />
+                  <div className="resumen-producto-row" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '700', fontSize: '15px', padding: '4px 0' }}>
+                    <span style={{ color: 'var(--text-primary)' }}>COSTO DE PRODUCCIÓN TOTAL</span>
+                    <span style={{ color: 'var(--accent-teal)' }}>S/ {receta.costoTotal?.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+                {/* Calculadora de Precio Sugerido */}
+                <div className="modal-seccion" style={{ margin: 0, padding: '16px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
+                  <div className="modal-seccion-titulo" style={{ fontSize: '14px', marginBottom: '8px' }}>📈 Precio Sugerido por Margen</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Margen Objetivo %:</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="99"
+                        value={margenObjetivo}
+                        onChange={(e) => setMargenObjetivo(parseFloat(e.target.value) || 0)}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '14px',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: 'var(--bg-input)',
+                          color: 'var(--text-primary)',
+                          width: '100%',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>PRECIO VENTA SUGERIDO (Sin IGV)</div>
+                      <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)', marginTop: '4px' }}>
+                        S/ {precioSugerido.toFixed(2)}
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--accent-teal)', fontWeight: '600', marginTop: '2px' }}>
+                        Con IGV: S/ {(precioSugerido * 1.18).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Simulador de Rentabilidad */}
+                <div className="modal-seccion" style={{ margin: 0, padding: '16px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
+                  <div className="modal-seccion-titulo" style={{ fontSize: '14px', marginBottom: '8px' }}>🎯 Simulador de Rentabilidad</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Precio Venta Lote (Subtotal / Sin IGV):</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={precioVentaTest}
+                        onChange={(e) => setPrecioVentaTest(parseFloat(e.target.value) || 0)}
+                        style={{
+                          padding: '8px 12px',
+                          fontSize: '14px',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: 'var(--bg-input)',
+                          color: 'var(--text-primary)',
+                          width: '100%',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div style={{ backgroundColor: '#f8fafc', padding: '10px 6px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '600' }}>RETORNO DE CAJA</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px' }}>
+                          {retornoCajaTest.toFixed(1)}%
+                        </div>
+                      </div>
+                      <div style={{ backgroundColor: '#f8fafc', padding: '10px 6px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', fontWeight: '600' }}>MARGEN NETO (Sin IGV)</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                          {margenNetoTest.toFixed(1)}%
+                          <span className={`intensidad-chip ${semaforoClase}`} style={{ fontSize: '8px', padding: '1px 5px', fontWeight: 700, display: 'inline-flex', verticalAlign: 'middle' }}>
+                            {semaforoLabel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── FOOTER ── */}
         <div className="modal-footer" style={{ gap:'12px', justifyContent:'space-between' }}>

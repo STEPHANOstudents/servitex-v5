@@ -12,7 +12,8 @@
     "prisma:studio": "prisma studio",
     "prisma:reset": "prisma migrate reset",
     "prisma:reset-clean": "ts-node prisma/reset-db.ts",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed.ts",
+    "test": "ts-node src/tests/costeo.test.ts"
   },
   "keywords": [],
   "author": "",
