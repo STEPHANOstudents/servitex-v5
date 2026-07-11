@@ -77,7 +77,7 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
   };
 
   const recetasFiltradas = recetas.filter(r => {
-    // 1. Filtro por fibra
+
     if (filtroFibra !== 'TODOS') {
       if (filtroFibra === 'ALGODON' && r.composicionFibra !== 'ALGODON') return false;
       if (filtroFibra === 'NYLON' && r.composicionFibra !== 'NYLON') return false;
@@ -85,7 +85,7 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
       if (filtroFibra === 'MULTIFIBRA' && !r.composicionFibra.startsWith('MULTIFIBRA')) return false;
     }
 
-    // 2. Filtro por buscador de texto libre (color, artículo, cliente)
+
     if (busqueda.trim()) {
       const q = busqueda.toLowerCase().trim();
       const colorMatch = r.descripcionColor.toLowerCase().includes(q);
@@ -273,11 +273,11 @@ const TableroRecetas: React.FC<TableroRecetasProps> = ({
           </div>
         ) : (
           <div className="recetas-empty">
-            <div style={{ fontSize:'48px', opacity:0.3 }}>🧪</div>
-            <div style={{ fontSize:'18px', fontWeight:600, color:'var(--text-secondary)' }}>
+            <div style={{ fontSize: '48px', opacity: 0.3 }}>🧪</div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-secondary)' }}>
               No hay recetas que coincidan con este filtro
             </div>
-            <div style={{ fontSize:'14px', color:'var(--text-muted)', maxWidth:'300px' }}>
+            <div style={{ fontSize: '14px', color: 'var(--text-muted)', maxWidth: '300px' }}>
               Prueba a seleccionar otro tipo de fibra o crea una nueva receta.
             </div>
             <button id="btn-ir-formulario-lab" type="button" className="btn btn-ghost-teal" onClick={onNuevaReceta}>
@@ -393,9 +393,9 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
 
       {/* Fibra badge */}
       <div className={`carta-fibra-badge ${fibraClase}`}>
-        {receta.composicionFibra === 'ALGODON'   ? '🌿' :
-         receta.composicionFibra === 'NYLON'     ? '🔵' :
-         receta.composicionFibra === 'POLIESTER' ? '🟠' : '🔀'}
+        {receta.composicionFibra === 'ALGODON' ? '🌿' :
+          receta.composicionFibra === 'NYLON' ? '🔵' :
+            receta.composicionFibra === 'POLIESTER' ? '🟠' : '🔀'}
         &nbsp;{getFibraLabel(receta.composicionFibra)}
       </div>
 
@@ -409,7 +409,7 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
       <div className="carta-footer">
         {/* DATO 2: Fecha de registro */}
         <div className="carta-fecha">📅 {formatFechaCorta(receta.createdAt)}</div>
-        <span className={`carta-nivel-chip intensidad-chip ${nivelClase}`} style={{ fontSize:'9px', padding:'2px 7px' }}>
+        <span className={`carta-nivel-chip intensidad-chip ${nivelClase}`} style={{ fontSize: '9px', padding: '2px 7px' }}>
           N{receta.nivelIntensidad}
         </span>
       </div>
@@ -417,7 +417,7 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
       {/* ── CONTENIDO EXPANDIDO INLINE ── */}
       <div className={`carta-expanded-content ${isExpanded ? 'expanded' : ''}`}>
         <hr style={{ border: 0, borderTop: '1px solid var(--border-subtle)', margin: '12px 0' }} />
-        
+
         <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
           <strong style={{ display: 'block', marginBottom: '6px', color: 'var(--text-primary)' }}>Colorantes:</strong>
           {!receta.composicionFibra.startsWith('MULTIFIBRA') ? (
@@ -486,7 +486,7 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
           >
             Ver detalles
           </button>
-          
+
           {rol === 'PROPIETARIA' && (
             <button
               type="button"
@@ -505,17 +505,17 @@ const MiniCartaReceta: React.FC<MiniCartaRecetaProps> = ({
               onClick={(e) => {
                 e.stopPropagation();
                 const preload: RecetaPreload = {
-                  pesoRealKg:            String(receta.pesoRealKg),
-                  articulo:              receta.articulo,
-                  articuloId:            receta.articuloId,
-                  composicionFibra:      receta.composicionFibra,
-                  relacionBano:          String(receta.relacionBano),
-                  descripcionColor:      receta.descripcionColor,
+                  pesoRealKg: String(receta.pesoRealKg),
+                  articulo: receta.articulo,
+                  articuloId: receta.articuloId,
+                  composicionFibra: receta.composicionFibra,
+                  relacionBano: String(receta.relacionBano),
+                  descripcionColor: receta.descripcionColor,
                   observacionesTecnicas: receta.observacionesTecnicas ?? '',
                   colorantes: receta.colorantes.map(col => ({
-                    nombre:      col.nombreColorante,
+                    nombre: col.nombreColorante,
                     coloranteId: col.coloranteId,
-                    porcentaje:  String(col.porcentaje),
+                    porcentaje: String(col.porcentaje),
                   })),
                 };
                 onCopiarBase(preload);

@@ -11,7 +11,6 @@ export function useInactivityLogout(timeoutMs: number, onLogout: () => void) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onLogoutRef = useRef(onLogout);
 
-  // Mantener la referencia actualizada de onLogout para evitar reinicios innecesarios del useEffect
   useEffect(() => {
     onLogoutRef.current = onLogout;
   }, [onLogout]);
@@ -28,15 +27,12 @@ export function useInactivityLogout(timeoutMs: number, onLogout: () => void) {
       }, timeoutMs);
     };
 
-    // Añadir escuchadores de eventos para detectar actividad
     window.addEventListener('mousemove', resetTimer);
     window.addEventListener('keydown', resetTimer);
     window.addEventListener('click', resetTimer);
 
-    // Inicializar el temporizador al montar
     resetTimer();
 
-    // Limpieza al desmontar
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);

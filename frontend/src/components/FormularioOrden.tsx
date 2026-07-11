@@ -36,7 +36,6 @@ function calcularTotalGeneral(filas: FilaDetalle[]): number {
   return total;
 }
 
-// Tipos cliente por defecto (fallback si el catálogo no carga)
 const TIPOS_CLIENTE_DEFAULT: TipoCliente[] = [
   { id: 1, codigo: 'EMPRESA', etiqueta: 'Empresa' },
   { id: 2, codigo: 'PERSONA_NATURAL', etiqueta: 'Persona Natural' },
@@ -55,19 +54,15 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({
   onToast,
   catalogos: catalogosProp,
 }) => {
-  // --- Estado cabecera ---
   const [numeroOC, setNumeroOC] = useState('');
   const [clienteIdSelect, setClienteIdSelect] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
-  // --- Catálogos y listados ---
   const [clientes, setClientes] = useState<ClienteDB[]>([]);
   const [tiposCliente, setTiposCliente] = useState<TipoCliente[]>(catalogosProp?.tiposCliente ?? TIPOS_CLIENTE_DEFAULT);
 
-  // --- Estado tabla ---
   const [filas, setFilas] = useState<FilaDetalle[]>([filaVacia()]);
 
-  // --- Estado UI ---
   const [guardando, setGuardando] = useState(false);
   const [errores, setErrores] = useState<Record<string, string>>({});
 
@@ -701,7 +696,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({
               >
                 Cancelar
               </button>
-              
+
               <button
                 type="button"
                 disabled={guardandoCliente}
@@ -723,7 +718,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({
                     onToast('error', 'El nombre del cliente es obligatorio.');
                     return;
                   }
-                  
+
                   if (nuevoClienteRuc.trim()) {
                     const rucVal = nuevoClienteRuc.trim();
                     if (!/^\d{8,11}$/.test(rucVal)) {
@@ -743,7 +738,7 @@ const FormularioOrden: React.FC<FormularioOrdenProps> = ({
                     onToast('success', `Cliente "${creado.nombre}" registrado exitosamente.`);
                     setClientes((prev) => [...prev, creado]);
                     setClienteIdSelect(String(creado.id));
-                    
+
                     // Limpiar y Cerrar
                     setMostrarModalCliente(false);
                     setNuevoClienteNombre('');

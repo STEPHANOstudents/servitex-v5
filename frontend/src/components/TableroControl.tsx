@@ -90,11 +90,11 @@ const TableroControl: React.FC<TableroControlProps> = ({
 
   const ordenesFiltradas = ordenes
     .filter((oc) => {
-      // 1. Filtro por chip de estado
+
       if (filtroEstado !== 'TODOS' && oc.orden.estado.codigo !== filtroEstado) {
         return false;
       }
-      // 2. Filtro por buscador (número de OC o cliente)
+
       if (terminoBusqueda.trim()) {
         const term = terminoBusqueda.toLowerCase();
         const numOC = oc.orden.numeroOC.toLowerCase();
@@ -108,11 +108,11 @@ const TableroControl: React.FC<TableroControlProps> = ({
       const indexB = PRIORIDAD_ESTADO.indexOf(b.orden.estado.codigo);
       const priorityA = indexA === -1 ? PRIORIDAD_ESTADO.length : indexA;
       const priorityB = indexB === -1 ? PRIORIDAD_ESTADO.length : indexB;
-      
+
       if (priorityA === priorityB) {
         return new Date(b.orden.createdAt).getTime() - new Date(a.orden.createdAt).getTime();
       }
-      
+
       return priorityA - priorityB;
     });
 

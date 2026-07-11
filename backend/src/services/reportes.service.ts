@@ -17,7 +17,7 @@ export const reportesService = {
       if (hasta) dateFilter.createdAt.lte = new Date(hasta);
     }
 
-    // Consultar las recetas técnicas filtrando por fecha de OrdenCompra
+    
     const recetas = await prisma.recetaTecnica.findMany({
       where: {
         detalleOrden: {
@@ -33,7 +33,7 @@ export const reportesService = {
       },
     });
 
-    // Calcular gramos y agrupar por nombre de colorante
+    
     const agrupados: Record<string, number> = {};
     for (const receta of recetas) {
       for (const c of receta.colorantes) {
@@ -43,7 +43,7 @@ export const reportesService = {
       }
     }
 
-    // Mapear, ordenar descendente y obtener top 5
+    
     return Object.entries(agrupados)
       .map(([nombre, totalGramos]) => ({
         nombre,

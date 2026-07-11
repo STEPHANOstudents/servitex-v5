@@ -52,14 +52,12 @@ export const ordenesService = {
   async crearOrdenConDetalles(datos: CrearOrdenInput): Promise<OrdenResponse> {
     const cache = await getCatalogosCache();
 
-    // Resolver IDs de catálogo
     const tipoClienteId = resolverCodigo(cache.tiposCliente, datos.tipoClienteCodigo, 'tipos_cliente');
     const estadoPendienteId = resolverCodigo(cache.estadosOrden, 'PENDIENTE', 'estados_orden');
     const metrosId = resolverCodigo(cache.unidadesMedida, 'METROS', 'unidades_medida');
 
     const ordenCreada = await prisma.$transaction(async (tx) => {
 
-      // Paso 1: Upsert del cliente
       const cliente = await tx.cliente.upsert({
         where: {
           nombre_tipoCliente: {
@@ -74,20 +72,18 @@ export const ordenesService = {
         },
       });
 
-      // Paso 2: Crear cabecera de OC
       const ordenCabecera = await tx.ordenCompra.create({
         data: {
-          numeroOC:     datos.numeroOC.trim().toUpperCase(),
-          clienteId:    cliente.id,
-          estadoId:     estadoPendienteId,
+          numeroOC: datos.numeroOC.trim().toUpperCase(),
+          clienteId: cliente.id,
+          estadoId: estadoPendienteId,
           observaciones: datos.observaciones?.trim() ?? null,
         },
       });
 
-      // Paso 3 + 4: Resolver o crear artículos dinámicamente y mapear detalles
       const detallesData = [];
       for (const detalle of datos.detalles) {
-        const cantidad      = detalle.cantidad;
+        const cantidad = detalle.cantidad;
         const precioPorMetro = detalle.precioPorMetro;
         const totalCalculado = Math.round(cantidad * precioPorMetro * 100) / 100;
         const unidadId = detalle.unidadMedidaId ?? metrosId;
@@ -115,8 +111,8 @@ export const ordenesService = {
         }
 
         detallesData.push({
-          ordenCompraId:  ordenCabecera.id,
-          articuloId:     articulo.id,
+          ordenCompraId: ordenCabecera.id,
+          articuloId: articulo.id,
           unidadMedidaId: unidadId,
           cantidad,
           colorSolicitado: detalle.colorSolicitado.trim(),
@@ -130,10 +126,10 @@ export const ordenesService = {
       // Registrar primera entrada en bitácora
       await tx.bitacoraEstado.create({
         data: {
-          ordenCompraId:    ordenCabecera.id,
+          ordenCompraId: ordenCabecera.id,
           estadoAnteriorId: estadoPendienteId,
-          estadoNuevoId:    estadoPendienteId,
-          observacion:      'Orden registrada en el sistema.',
+          estadoNuevoId: estadoPendienteId,
+          observacion: 'Orden registrada en el sistema.',
         },
       });
 
@@ -167,8 +163,8 @@ export const ordenesService = {
     }
 
     const where: Prisma.OrdenCompraWhereInput = {
-      ...(estadoId    && { estadoId }),
-      ...(clienteId   && { clienteId }),
+      ...(estadoId && { estadoId }),
+      ...(clienteId && { clienteId }),
     };
 
     const [total, ordenes] = await Promise.all([
@@ -230,16 +226,16 @@ export const ordenesService = {
     return prisma.$transaction(async (tx) => {
       const actualizada = await tx.ordenCompra.update({
         where: { id },
-        data:  { estadoId: nuevoEstadoId },
+        data: { estadoId: nuevoEstadoId },
         include: INCLUDE_ORDEN_COMPLETA,
       });
 
       // Registrar el cambio en bitácora
       await tx.bitacoraEstado.create({
         data: {
-          ordenCompraId:    id,
+          ordenCompraId: id,
           estadoAnteriorId: existe.estadoId,
-          estadoNuevoId:    nuevoEstadoId,
+          estadoNuevoId: nuevoEstadoId,
         },
       });
 
@@ -255,15 +251,15 @@ function calcularLiquidacion(
   detalles: Array<{ cantidad: number; precioPorMetro: number; total: number }>
 ): LiquidacionOC {
   const subtotalVenta = detalles.reduce((acc, d) => acc + d.total, 0);
-  const igv           = Math.round(subtotalVenta * IGV_RATE * 100) / 100;
-  const totalReal     = Math.round((subtotalVenta + igv) * 100) / 100;
+  const igv = Math.round(subtotalVenta * IGV_RATE * 100) / 100;
+  const totalReal = Math.round((subtotalVenta + igv) * 100) / 100;
   const metrosTotales = detalles.reduce((acc, d) => acc + d.cantidad, 0);
 
   return {
-    subtotalVenta:  Math.round(subtotalVenta * 100) / 100,
+    subtotalVenta: Math.round(subtotalVenta * 100) / 100,
     igv,
     totalReal,
-    cantidadLotes:  detalles.length,
-    metrosTotales:  Math.round(metrosTotales * 100) / 100,
+    cantidadLotes: detalles.length,
+    metrosTotales: Math.round(metrosTotales * 100) / 100,
   };
 }

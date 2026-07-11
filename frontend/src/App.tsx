@@ -62,18 +62,18 @@ const App: React.FC = () => {
   const [vista, setVista] = useState<Vista>('formulario');
 
   // ── Módulo 1: Órdenes ──
-  const [ordenes, setOrdenes]               = useState<OrdenResponse[]>([]);
+  const [ordenes, setOrdenes] = useState<OrdenResponse[]>([]);
   const [cargandoOrdenes, setCargandoOrdenes] = useState(false);
-  const [modalData, setModalData]           = useState<{
+  const [modalData, setModalData] = useState<{
     orden: OrdenCompraDB; liquidacion: LiquidacionOC;
   } | null>(null);
 
   // ── Módulo 2: Recetas / Lab ──
-  const [recetas, setRecetas]               = useState<RecetaListItem[]>([]);
+  const [recetas, setRecetas] = useState<RecetaListItem[]>([]);
   const [cargandoRecetas, setCargandoRecetas] = useState(false);
-  const [modalReceta, setModalReceta]       = useState<RecetaConMotor | null>(null);
-  const [recetaPreload, setRecetaPreload]   = useState<RecetaPreload | null>(null);
-  const [recetaAjuste, setRecetaAjuste]     = useState<RecetaConMotor | null>(null);
+  const [modalReceta, setModalReceta] = useState<RecetaConMotor | null>(null);
+  const [recetaPreload, setRecetaPreload] = useState<RecetaPreload | null>(null);
+  const [recetaAjuste, setRecetaAjuste] = useState<RecetaConMotor | null>(null);
 
   // ── Toasts ──
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -106,9 +106,14 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    cargarOrdenes();
-    cargarRecetas();
-  }, [cargarOrdenes, cargarRecetas]);
+    if (usuario) {
+      cargarOrdenes();
+      cargarRecetas();
+    } else {
+      setOrdenes([]);
+      setRecetas([]);
+    }
+  }, [usuario, cargarOrdenes, cargarRecetas]);
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -117,11 +122,11 @@ const App: React.FC = () => {
     const sub = orden.detalles.reduce((a, d) => a + d.total, 0);
     const igv = Math.round(sub * 0.18 * 100) / 100;
     return {
-      subtotalVenta:  Math.round(sub * 100) / 100,
+      subtotalVenta: Math.round(sub * 100) / 100,
       igv,
-      totalReal:      Math.round((sub + igv) * 100) / 100,
-      cantidadLotes:  orden.detalles.length,
-      metrosTotales:  Math.round(orden.detalles.reduce((a, d) => a + d.cantidad, 0) * 100) / 100,
+      totalReal: Math.round((sub + igv) * 100) / 100,
+      cantidadLotes: orden.detalles.length,
+      metrosTotales: Math.round(orden.detalles.reduce((a, d) => a + d.cantidad, 0) * 100) / 100,
     };
   }
 
@@ -245,7 +250,7 @@ const App: React.FC = () => {
             onClick={() => setVista('tablero')}>
             📊 Tablero OC
             {ordenes.length > 0 && (
-              <span style={{ marginLeft:'6px', background:'var(--accent-teal)', color:'#000', fontSize:'10px', fontWeight:'700', padding:'1px 6px', borderRadius:'99px' }}>
+              <span style={{ marginLeft: '6px', background: 'var(--accent-teal)', color: '#000', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '99px' }}>
                 {ordenes.length}
               </span>
             )}
@@ -267,7 +272,7 @@ const App: React.FC = () => {
             onClick={() => { setVista('lab-proceso'); }}>
             ⏳ Lotes en Proceso
             {recetas.filter(r => r.estado === 'FORMULACION' || r.estado === 'PROCESO').length > 0 && (
-              <span style={{ marginLeft:'6px', background:'var(--accent-gold)', color:'#000', fontSize:'10px', fontWeight:'700', padding:'1px 6px', borderRadius:'99px' }}>
+              <span style={{ marginLeft: '6px', background: 'var(--accent-gold)', color: '#000', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '99px' }}>
                 {recetas.filter(r => r.estado === 'FORMULACION' || r.estado === 'PROCESO').length}
               </span>
             )}
@@ -277,7 +282,7 @@ const App: React.FC = () => {
             onClick={() => setVista('lab-tablero')}>
             📚 Lab Histórico
             {recetas.filter(r => r.estado === 'APROBADO').length > 0 && (
-              <span style={{ marginLeft:'6px', background:'var(--accent-purple)', color:'#fff', fontSize:'10px', fontWeight:'700', padding:'1px 6px', borderRadius:'99px' }}>
+              <span style={{ marginLeft: '6px', background: 'var(--accent-purple)', color: '#fff', fontSize: '10px', fontWeight: '700', padding: '1px 6px', borderRadius: '99px' }}>
                 {recetas.filter(r => r.estado === 'APROBADO').length}
               </span>
             )}
@@ -341,8 +346,8 @@ const App: React.FC = () => {
         {/* ── Vista: Tablero de Órdenes ── */}
         {vista === 'tablero' && (
           cargandoOrdenes ? (
-            <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'200px', gap:'14px', color:'var(--text-muted)' }}>
-              <div className="spinner" style={{ borderTopColor:'var(--accent-teal)' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', gap: '14px', color: 'var(--text-muted)' }}>
+              <div className="spinner" style={{ borderTopColor: 'var(--accent-teal)' }} />
               Cargando órdenes...
             </div>
           ) : (
@@ -413,8 +418,8 @@ const App: React.FC = () => {
         {/* ── Vista: Lab Histórico ── */}
         {vista === 'lab-tablero' && (
           cargandoRecetas ? (
-            <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'200px', gap:'14px', color:'var(--text-muted)' }}>
-              <div className="spinner" style={{ borderTopColor:'var(--accent-purple)' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', gap: '14px', color: 'var(--text-muted)' }}>
+              <div className="spinner" style={{ borderTopColor: 'var(--accent-purple)' }} />
               Cargando recetas...
             </div>
           ) : (
