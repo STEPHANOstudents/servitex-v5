@@ -124,64 +124,71 @@ export const reportesService = {
       .slice(0, 5);
   },
 
-  /**
-   * Reporte 3: Producción Temporal
-   * Sumatoria de metros teñidos agrupados por periodos (mes, trimestre, año).
-   */
-  async obtenerProduccionTemporal(desde?: string, hasta?: string, agrupacion: 'mes' | 'trimestre' | 'año' = 'mes') {
-    const queryConditions: any[] = [];
-    if (desde) {
-      queryConditions.push(Prisma.sql`oc."createdAt" >= ${new Date(desde)}`);
-    }
-    if (hasta) {
-      queryConditions.push(Prisma.sql`oc."createdAt" <= ${new Date(hasta)}`);
+  async obtenerProduccionTemporal(desde?: string, hasta?: string, agrupacion: 'dia' | 'mes' | 'año' = 'mes') {
+    const dateFilter: any = {};
+    if (desde || hasta) {
+      dateFilter.createdAt = {};
+      if (desde) dateFilter.createdAt.gte = new Date(desde);
+      if (hasta) dateFilter.createdAt.lte = new Date(hasta);
     }
 
-    const where = queryConditions.length > 0 
-      ? Prisma.sql`WHERE ${Prisma.join(queryConditions, ' AND ')}` 
-      : Prisma.empty;
+    // Obtener detalles de órdenes que tienen recetas técnicas calculadas
+    const detalles = await prisma.detalleOrden.findMany({
+      where: {
+        ordenCompra: Object.keys(dateFilter).length > 0 ? dateFilter : undefined,
+        recetaTecnica: {
+          costoTotal: { not: null }
+        }
+      },
+      include: {
+        ordenCompra: true,
+        recetaTecnica: true,
+      }
+    });
 
-    const bucketMap = {
-      mes: 'month',
-      trimestre: 'quarter',
-      'año': 'year',
-    };
-    const bucket = bucketMap[agrupacion] || 'month';
-    const rawQuery = `date_trunc('${bucket}', oc."createdAt")`;
+    // Agrupar por periodo y calcular el promedio de margen neto
+    const agrupados: Record<string, { sum: number; count: number }> = {};
 
-    // Consulta raw SQL en base a date_trunc
-    const resRaw: any[] = await prisma.$queryRaw`
-      SELECT 
-        ${Prisma.raw(rawQuery)} AS periodo,
-        COALESCE(SUM(det.cantidad), 0)::float AS "totalMetros"
-      FROM detalles_orden det
-      JOIN ordenes_compra oc ON det."ordenCompraId" = oc.id
-      ${where}
-      GROUP BY periodo
-      ORDER BY periodo ASC
-    `;
-
-    return resRaw.map(row => {
-      const dateVal = row.periodo instanceof Date ? row.periodo : new Date(row.periodo);
+    for (const det of detalles) {
+      const dateVal = new Date(det.ordenCompra.createdAt);
       let periodoStr = '';
 
-      if (agrupacion === 'mes') {
-        const y = dateVal.getUTCFullYear();
-        const m = String(dateVal.getUTCMonth() + 1).padStart(2, '0');
+      if (agrupacion === 'dia') {
+        const y = dateVal.getFullYear();
+        const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+        const d = String(dateVal.getDate()).padStart(2, '0');
+        periodoStr = `${y}-${m}-${d}`;
+      } else if (agrupacion === 'mes') {
+        const y = dateVal.getFullYear();
+        const m = String(dateVal.getMonth() + 1).padStart(2, '0');
         periodoStr = `${y}-${m}`;
-      } else if (agrupacion === 'trimestre') {
-        const y = dateVal.getUTCFullYear();
-        const q = Math.ceil((dateVal.getUTCMonth() + 1) / 3);
-        periodoStr = `${y}-Q${q}`;
       } else {
-        periodoStr = String(dateVal.getUTCFullYear());
+        periodoStr = String(dateVal.getFullYear());
       }
 
-      return {
-        periodo: periodoStr,
-        totalMetros: Math.round(row.totalMetros * 100) / 100,
-      };
-    });
+      const subtotal = det.total;
+      const costo = det.recetaTecnica?.costoTotal ?? 0;
+
+      if (subtotal > 0) {
+        // Margen Neto % = ((Venta - Costo) / Venta) * 100
+        const margen = ((subtotal - costo) / subtotal) * 100;
+        
+        if (!agrupados[periodoStr]) {
+          agrupados[periodoStr] = { sum: 0, count: 0 };
+        }
+        agrupados[periodoStr].sum += margen;
+        agrupados[periodoStr].count += 1;
+      }
+    }
+
+    // Formatear resultados
+    const resRaw = Object.entries(agrupados).map(([periodo, info]) => ({
+      periodo,
+      totalMetros: Math.round((info.sum / info.count) * 100) / 100, // Reutilizamos totalMetros en el tipo de respuesta para simplificar compatibilidad
+    }));
+
+    // Ordenar cronológicamente
+    return resRaw.sort((a, b) => a.periodo.localeCompare(b.periodo));
   },
 
   /**

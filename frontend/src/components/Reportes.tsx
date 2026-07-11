@@ -24,8 +24,8 @@ const Reportes: React.FC = () => {
   const [fidelidad, setFidelidad] = useState<FidelidadCliente[]>([]);
   const [produccion, setProduccion] = useState<ProduccionTemporal[]>([]);
   
-  // Agrupación para el tercer reporte: mes | trimestre | año
-  const [agrupacion, setAgrupacion] = useState<'mes' | 'trimestre' | 'año'>('mes');
+  // Agrupación para el tercer reporte: dia | mes | año
+  const [agrupacion, setAgrupacion] = useState<'dia' | 'mes' | 'año'>('mes');
   
   // Estados de carga e interfaz
   const [cargando, setCargando] = useState(false);
@@ -123,23 +123,23 @@ const Reportes: React.FC = () => {
         </table>
       `;
     } else {
-      const agrStr = agrupacion === 'mes' ? 'Mensual' : agrupacion === 'trimestre' ? 'Trimestral' : 'Anual';
-      titulo = `Reporte de Producción Temporal (${agrStr})`;
+      const agrStr = agrupacion === 'dia' ? 'Diario' : agrupacion === 'mes' ? 'Mensual' : 'Anual';
+      titulo = `Reporte de Margen Neto Promedio (${agrStr})`;
       colorPrimario = '#ea580c'; // Orange
-      descripcion = 'Este reporte detalla los metros lineales totales de textil teñidos y despachados en el taller de teñido, agrupados de forma periódica.';
+      descripcion = 'Este reporte presenta la evolución periódica del margen neto promedio (%) obtenido de los lotes teñidos del taller, comparando costos de producción históricos contra los valores de venta.';
       tablaHtml = `
         <table>
           <thead>
             <tr>
               <th>Periodo</th>
-              <th style="text-align: right;">Metros Teñidos (m)</th>
+              <th style="text-align: right;">Margen Promedio (%)</th>
             </tr>
           </thead>
           <tbody>
             ${produccion.map((c) => `
               <tr>
                 <td><strong>${c.periodo}</strong></td>
-                <td style="text-align: right; font-weight: bold; color: ${colorPrimario};">${c.totalMetros.toLocaleString('es-PE')} m</td>
+                <td style="text-align: right; font-weight: bold; color: ${colorPrimario};">${c.totalMetros.toFixed(1)}%</td>
               </tr>
             `).join('')}
           </tbody>
@@ -661,7 +661,7 @@ const Reportes: React.FC = () => {
             </button>
           </div>
 
-          {/* PANEL 3: Producción Temporal */}
+          {/* PANEL 3: Margen Promedio */}
           <div className="card" style={{ 
             borderLeft: '5px solid #ea580c', 
             display: 'flex', 
@@ -673,12 +673,12 @@ const Reportes: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '20px' }}>📈</span>
-                  <h3 className="card-title" style={{ margin: 0, fontSize: '16px' }}>Producción Temporal</h3>
+                  <h3 className="card-title" style={{ margin: 0, fontSize: '16px' }}>Rentabilidad de Lotes</h3>
                 </div>
 
                 {/* Filtro Pill Buttons */}
                 <div style={{ display: 'flex', gap: '4px' }}>
-                  {(['mes', 'trimestre', 'año'] as const).map((t) => (
+                  {(['dia', 'mes', 'año'] as const).map((t) => (
                     <button
                       key={t}
                       type="button"
@@ -695,16 +695,16 @@ const Reportes: React.FC = () => {
                         cursor: 'pointer'
                       }}
                     >
-                      {t === 'mes' ? 'Mes' : t === 'trimestre' ? 'Trimestre' : 'Año'}
+                      {t === 'dia' ? 'Días' : t === 'mes' ? 'Meses' : 'Años'}
                     </button>
                   ))}
                 </div>
               </div>
-              <p className="card-desc" style={{ marginBottom: '20px' }}>Metros teñidos por período</p>
+              <p className="card-desc" style={{ marginBottom: '20px' }}>Margen neto promedio por período (%)</p>
 
               {produccion.length === 0 ? (
-                <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  Sin datos de producción en este rango.
+                <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '0 16px' }}>
+                  Sin datos de margen de ganancia en este rango (se requiere registrar recetas con costeo).
                 </div>
               ) : (
                 <div style={{ width: '100%', height: '220px', marginLeft: '-20px' }}>
@@ -715,9 +715,9 @@ const Reportes: React.FC = () => {
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-subtle)" />
                       <XAxis dataKey="periodo" stroke="var(--text-muted)" fontSize={10} tickLine={false} />
-                      <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} unit="%" />
                       <Tooltip 
-                        formatter={(value: any) => [`${value} m`, 'Metros teñidos']}
+                        formatter={(value: any) => [`${value.toFixed(1)}%`, 'Margen Neto Promedio']}
                         contentStyle={{ fontSize: '12px', borderRadius: 'var(--radius-sm)' }}
                       />
                       <Line 
@@ -727,7 +727,7 @@ const Reportes: React.FC = () => {
                         strokeWidth={2.5} 
                         dot={{ r: 4, stroke: '#ea580c', strokeWidth: 1, fill: '#fff' }} 
                         activeDot={{ r: 6 }} 
-                        name="Metros" 
+                        name="Margen Promedio" 
                       />
                     </LineChart>
                   </ResponsiveContainer>

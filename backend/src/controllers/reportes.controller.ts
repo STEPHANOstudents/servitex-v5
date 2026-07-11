@@ -75,8 +75,8 @@ export const reportesController = {
     try {
       const { desde, hasta, agrupacion } = req.query as Record<string, string>;
 
-      const agrValido = (agrupacion === 'mes' || agrupacion === 'trimestre' || agrupacion === 'año')
-        ? agrupacion
+      const agrValido = (agrupacion === 'dia' || agrupacion === 'mes' || agrupacion === 'año')
+        ? agrupacion as 'dia' | 'mes' | 'año'
         : 'mes';
 
       const data = await reportesService.obtenerProduccionTemporal(desde, hasta, agrValido);

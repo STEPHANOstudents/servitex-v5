@@ -54,7 +54,7 @@ export async function fetchFidelidadClientes(desde?: string, hasta?: string): Pr
  * Obtiene la producción temporal acumulada (metros) según rango y agrupación.
  */
 export async function fetchProduccionTemporal(
-  agrupacion: 'mes' | 'trimestre' | 'año',
+  agrupacion: 'dia' | 'mes' | 'año',
   desde?: string,
   hasta?: string
 ): Promise<ProduccionTemporal[]> {
