@@ -103,6 +103,14 @@
   * **Reportes Generales:** Botones para imprimir reportes consolidados (Consumo, Ranking, Producción).
   * **Historial por Cliente (¡NUEVO!):** Botón `🖨️` al lado de cada cliente que genera un PDF detallado. Organiza la actividad del cliente en **recuadros independientes por cada Orden de Compra** con la fecha, desglose de lotes (artículo, metros, color, costo Sin/Con IGV) y subtotales. Cuenta con indicadores generales superiores y finaliza con un **cuadro resumen contable consolidado estilo Excel** que agrupa los costos por OC con una doble línea de suma total.
 
+### 💰 Módulo 4 — Margen y Cotización (¡NUEVO!)
+- **Costeo Automático Detallado:** Calcula en tiempo real el desglose de costos de producción del lote (agua consumida, químicos auxiliares, colorantes e importes fijos de mano de obra según peso real).
+- **Cálculo Acumulado por Baño de Ajuste (Iteraciones):** Añade dinámicamente un costo incremental por cada baño de teñido adicional ejecutado en el laboratorio para dar con el tono (agua + químicos extras), manteniendo mano de obra y colorantes actualizados.
+- **Cotizador de Venta Sugerido:** Calcula automáticamente el precio de venta recomendado (neto e inclusive con el 18% de IGV) para cumplir un porcentaje de margen neto meta.
+- **Simulador Financiero Interactivo:** Permite simular retornos de caja, márgenes netos y utilidades netas con semáforo visual de alerta (Verde >30%, Naranja 15%-30%, Rojo <15%).
+- **Evolución Temporal del Margen Promedio:** Gráfico de líneas dinámico que registra el promedio de margen neto de ganancia de todos los lotes costados, agrupados por períodos de tiempo: **Día**, **Mes** o **Año**.
+- **Eliminación y Desvinculación de Recetas/OCs:** Permite borrar OCs y recetas técnicas por separado. En el borrado de una OC, sus recetas se conservan "huérfanas" históricamente, ocultando su pestaña de cotización financiera pero reteniendo el color y las secuencias físicas del laboratorio.
+
 ---
 
 ## Estructura del proyecto
@@ -160,7 +168,7 @@ Servitex/
 
 ---
 
-## Base de datos — 20 tablas normalizadas (3FN)
+## Base de datos — 22 tablas normalizadas (3FN)
 
 El almacenamiento cumple estrictamente con la **Tercera Forma Normal (3FN)** para garantizar la integridad y evitar redundancias. Cuenta con las siguientes tablas:
 
@@ -188,6 +196,7 @@ El almacenamiento cumple estrictamente con la **Tercera Forma Normal (3FN)** par
 19. `plantillas_receta`: Recetas base guardadas para reutilización rápida.
 20. `colorantes_plantilla`: Colorantes definidos en una plantilla.
 21. `reportes_generados`: Historial inmutable de snapshots de reportes emitidos.
+22. `precios_insumos`: Tarifas unitarias base de agua, químicos y colorantes del taller.
 
 ---
 
@@ -203,3 +212,19 @@ Todos los nuevos endpoints requieren una cabecera `Authorization: Bearer <JWT_TO
 *   `GET /api/reportes/consumo-colorantes`: Obtiene el consumo acumulado en gramos y kilogramos de colorantes.
 *   `GET /api/reportes/fidelidad-clientes`: Retorna el ranking de actividad y volumen de metros teñidos por cliente.
 *   `GET /api/reportes/produccion-temporal?agrupacion=mes|trimestre|año`: Obtiene la producción de metros teñidos según el período indicado.
+
+### Margen y Cotización — `/api/precios` & `/api/recetas`
+*   `GET /api/precios`: Lista las tarifas de todos los insumos y colorantes.
+*   `PUT /api/precios/:id`: Actualiza el precio unitario de un insumo (Exclusivo Propietaria).
+*   `GET /api/recetas/:id/precio-sugerido?margen=XX`: Calcula el precio de venta recomendado dada la meta de margen neto.
+*   `DELETE /api/ordenes/:id`: Borrado seguro y transaccional de una orden (Exclusivo Propietaria).
+*   `DELETE /api/recetas/:id`: Borrado seguro de una receta técnica de laboratorio (Exclusivo Propietaria).
+
+---
+
+## Pruebas de Costeo y Margen
+Para verificar los cálculos financieros del motor de costos, puedes ejecutar el conjunto de pruebas unitarias en el backend:
+```bash
+cd backend
+npm run test
+```
